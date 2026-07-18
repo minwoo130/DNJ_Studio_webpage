@@ -1,5 +1,7 @@
 import Image from "next/image";
+import Link from "next/link";
 import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 
 const NOTICES = [
   "[공지] 2026년 8월 배송 일정 안내",
@@ -134,13 +136,42 @@ function SectionHeading({
 export default function Home() {
   return (
     <main className="min-h-screen bg-white">
-      <Header />
+      <Header overlay />
 
-      <section className="flex aspect-[4/3] items-end bg-gray-100 px-4 py-6 sm:aspect-[16/6]">
-        <div>
-          <p className="text-xs font-semibold text-brand-red">NEW ARRIVAL</p>
-          <h1 className="mt-1 text-2xl font-bold">2026 여름 신상 입고</h1>
-        </div>
+      <section className="flex gap-0.5 overflow-hidden sm:gap-1">
+        <Link href="/seasonal" className="group relative block aspect-[1/1] w-1/2 overflow-hidden bg-gray-100 sm:aspect-[3/2]">
+          <Image
+            src="/banners/seasonal.jpg"
+            alt="계절상품 바로가기"
+            fill
+            sizes="50vw"
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
+            priority
+          />
+          <div className="absolute inset-0 bg-black/20" />
+          <div className="absolute bottom-4 left-4 text-white sm:bottom-6 sm:left-6">
+            <p className="text-xs font-semibold sm:text-sm">NEW ARRIVAL</p>
+            <h1 className="mt-1 text-lg font-bold sm:text-2xl">2026 여름 신상 입고</h1>
+            <p className="mt-1 text-xs underline underline-offset-2 sm:text-sm">계절상품 보러가기</p>
+          </div>
+        </Link>
+
+        <Link href="/best" className="group relative block aspect-[1/1] w-1/2 overflow-hidden bg-gray-100 sm:aspect-[3/2]">
+          <Image
+            src="/banners/best.jpg"
+            alt="베스트 상품 바로가기"
+            fill
+            sizes="50vw"
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
+            priority
+          />
+          <div className="absolute inset-0 bg-black/20" />
+          <div className="absolute bottom-4 left-4 text-white sm:bottom-6 sm:left-6">
+            <p className="text-xs font-semibold sm:text-sm">BEST</p>
+            <h1 className="mt-1 text-lg font-bold sm:text-2xl">가장 많이 팔린 상품</h1>
+            <p className="mt-1 text-xs underline underline-offset-2 sm:text-sm">베스트 상품 보러가기</p>
+          </div>
+        </Link>
       </section>
 
       <section className="mx-auto max-w-screen-lg px-4 py-6">
@@ -177,25 +208,7 @@ export default function Home() {
         </div>
       </section>
 
-      <footer className="border-t border-gray-100 px-4 py-8 text-xs leading-relaxed text-gray-400">
-        <nav className="mb-4 flex gap-3 text-gray-600">
-          <a href="#">Home</a>
-          <a href="#">이용약관</a>
-          <a href="#">개인정보처리방침</a>
-          <a href="#">고객센터</a>
-        </nav>
-        <p className="font-semibold text-gray-600">DNJ STUDIO</p>
-        <p className="mt-2">
-          상호명: DNJ STUDIO&nbsp;&nbsp;|&nbsp;&nbsp;대표자: 이동화
-          <br />
-          사업장주소: 서울 노원구 월계동 911-8 301
-          <br />
-          사업자등록번호: 605-32-32593
-          <br />
-          대표자 이메일: ldh09069674@gmail.com
-        </p>
-        <p className="mt-4">&copy; 2026 DNJ studio. All rights reserved.</p>
-      </footer>
+      <Footer />
     </main>
   );
 }

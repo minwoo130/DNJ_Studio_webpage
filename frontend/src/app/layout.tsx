@@ -1,5 +1,12 @@
 import type { Metadata, Viewport } from "next";
+import { Outfit } from "next/font/google";
 import "./globals.css";
+
+const logoFont = Outfit({
+  subsets: ["latin"],
+  weight: ["300", "400", "500"],
+  variable: "--font-logo",
+});
 
 export const metadata: Metadata = {
   title: "DNJ STUDIO",
@@ -35,7 +42,7 @@ export default function RootLayout({
           href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css"
         />
       </head>
-      <body className="font-pretendard antialiased">{children}</body>
+      <body className={`${logoFont.variable} font-pretendard antialiased`}>{children}</body>
     </html>
   );
 }

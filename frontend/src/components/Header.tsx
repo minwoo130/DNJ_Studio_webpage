@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 
 const CATEGORIES = [
@@ -14,25 +14,15 @@ const CATEGORIES = [
   "ACC",
 ];
 
-export default function Header() {
-  const [hidden, setHidden] = useState(false);
+export default function Header({ overlay = false }: { overlay?: boolean }) {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const lastY = useRef(0);
 
   useEffect(() => {
     function onScroll() {
-      const y = window.scrollY;
-      setScrolled(y > 4);
-      if (y < 80) {
-        setHidden(false);
-      } else if (y > lastY.current) {
-        setHidden(true); // scrolling down -> hide
-      } else if (y < lastY.current) {
-        setHidden(false); // scrolling up -> show
-      }
-      lastY.current = y;
+      setScrolled(window.scrollY > 60);
     }
+    onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
@@ -44,68 +34,119 @@ export default function Header() {
     };
   }, [menuOpen]);
 
+  const transparent = overlay && !scrolled;
+
   return (
     <>
-      <div
-        className="sticky top-0 z-30 transition-transform duration-300 ease-in-out"
-        style={{ transform: hidden ? "translateY(-100%)" : "translateY(0)" }}
-      >
+      <div className={`${overlay ? "fixed" : "sticky"} top-0 z-30 w-full`}>
         <div className="bg-black px-4 py-1.5 text-center text-[11px] text-white">
           신규가입 시 3,000원 쿠폰 즉시 지급 · 7만원 이상 구매 시 무료배송
         </div>
 
         <div
-          className={`border-b border-gray-100 bg-white/95 backdrop-blur transition-shadow ${
-            scrolled ? "shadow-sm" : ""
+          className={`transition-all duration-300 ${
+            transparent
+              ? "border-b border-transparent bg-transparent"
+              : "border-b border-gray-100 bg-white/95 shadow-sm backdrop-blur"
           }`}
         >
-          <div className="mx-auto grid max-w-screen-lg grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-2 sm:py-3">
-            <div className="flex items-center justify-self-start">
-              <button
-                aria-label="메뉴 열기"
-                className="flex h-8 w-8 flex-col items-center justify-center gap-1 sm:hidden"
-                onClick={() => setMenuOpen(true)}
-              >
-                <span className="block h-[1.5px] w-5 bg-gray-800" />
-                <span className="block h-[1.5px] w-5 bg-gray-800" />
-                <span className="block h-[1.5px] w-5 bg-gray-800" />
-              </button>
+          {/* 로고(맨 왼쪽) + 카테고리 + 아이콘(오른쪽) */}
+          <div className="flex w-full items-center px-4 py-3 sm:px-4 sm:py-4">
+            <button
+              aria-label="메뉴 열기"
+              className="flex h-8 w-8 flex-col items-center justify-center gap-1 sm:hidden"
+              onClick={() => setMenuOpen(true)}
+            >
+              <span
+                className={`block h-[1.5px] w-5 transition-colors ${
+                  transparent ? "bg-white" : "bg-gray-800"
+                }`}
+              />
+              <span
+                className={`block h-[1.5px] w-5 transition-colors ${
+                  transparent ? "bg-white" : "bg-gray-800"
+                }`}
+              />
+              <span
+                className={`block h-[1.5px] w-5 transition-colors ${
+                  transparent ? "bg-white" : "bg-gray-800"
+                }`}
+              />
+            </button>
 
-              <nav className="hidden items-center gap-4 text-sm font-medium text-gray-700 sm:flex">
-                {CATEGORIES.slice(0, Math.ceil(CATEGORIES.length / 2)).map((c) => (
-                  <button key={c} className="whitespace-nowrap hover:text-black">
-                    {c}
-                  </button>
-                ))}
-              </nav>
-            </div>
-
-            <a href="/" className="shrink-0 justify-self-center">
+            <a href="/" className="mx-auto shrink-0 sm:mx-0">
               <Image
                 src="/logo.png"
                 alt="DNJ STUDIO"
                 width={563}
                 height={387}
                 priority
-                className="h-9 w-auto sm:h-14"
+                className={`h-11 w-auto transition-all duration-300 sm:h-16 ${
+                  transparent ? "brightness-0 invert drop-shadow-md" : ""
+                }`}
               />
             </a>
 
-            <div className="flex items-center justify-self-end gap-4">
-              <nav className="hidden items-center gap-4 text-sm font-medium text-gray-700 sm:flex">
-                {CATEGORIES.slice(Math.ceil(CATEGORIES.length / 2)).map((c) => (
-                  <button key={c} className="whitespace-nowrap hover:text-black">
-                    {c}
-                  </button>
-                ))}
-                <span className="mx-1 h-3 w-px bg-gray-200" />
-                <button aria-label="검색">검색</button>
-                <button aria-label="위시리스트">♡</button>
-                <button aria-label="장바구니">가방(0)</button>
-                <button aria-label="마이페이지">MY</button>
+            <nav
+              className={`ml-10 hidden items-center gap-6 text-sm font-medium transition-colors sm:flex ${
+                transparent
+                  ? "text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.45)]"
+                  : "text-gray-700"
+              }`}
+            >
+              {CATEGORIES.map((c) => (
+                <button key={c} className="whitespace-nowrap hover:opacity-70">
+                  {c}
+                </button>
+              ))}
+            </nav>
+
+            <div className="ml-auto flex items-center">
+              <nav
+                className={`hidden items-center gap-5 text-sm transition-colors sm:flex ${
+                  transparent
+                    ? "text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.45)]"
+                    : "text-gray-500"
+                }`}
+              >
+                <button aria-label="검색">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-[18px] w-[18px]">
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="M20 20l-3.5-3.5" strokeLinecap="round" />
+                  </svg>
+                </button>
+                <button aria-label="위시리스트">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-[18px] w-[18px]">
+                    <path d="M12 20s-7-4.35-9.5-8.8C.8 7.6 2.3 4 6 4c2 0 3.5 1 4 2.5C10.5 5 12 4 14 4c3.7 0 5.2 3.6 3.5 7.2C19 15.65 12 20 12 20z" />
+                  </svg>
+                </button>
+                <button aria-label="장바구니" className="relative">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-[18px] w-[18px]">
+                    <path d="M6 8h12l-1 12H7L6 8z" strokeLinejoin="round" />
+                    <path d="M9 8V6a3 3 0 0 1 6 0v2" strokeLinecap="round" />
+                  </svg>
+                  <span className="absolute -right-1.5 -top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-brand-red text-[9px] font-bold text-white">
+                    0
+                  </span>
+                </button>
+                <button aria-label="마이페이지">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-[18px] w-[18px]">
+                    <circle cx="12" cy="8" r="3.5" />
+                    <path d="M4.5 20c1.2-3.5 4-5.5 7.5-5.5s6.3 2 7.5 5.5" strokeLinecap="round" />
+                  </svg>
+                </button>
               </nav>
-              <button aria-label="장바구니" className="text-sm text-gray-500 sm:hidden">
-                가방(0)
+              <button
+                aria-label="장바구니"
+                className={`relative sm:hidden ${transparent ? "text-white" : "text-gray-600"}`}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-5 w-5">
+                  <path d="M6 8h12l-1 12H7L6 8z" strokeLinejoin="round" />
+                  <path d="M9 8V6a3 3 0 0 1 6 0v2" strokeLinecap="round" />
+                </svg>
+                <span className="absolute -right-1.5 -top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-brand-red text-[9px] font-bold text-white">
+                  0
+                </span>
               </button>
             </div>
           </div>
@@ -127,7 +168,7 @@ export default function Header() {
           }`}
         >
           <div className="flex items-center justify-between px-4 py-3">
-            <Image src="/logo.png" alt="DNJ STUDIO" width={563} height={387} className="h-8 w-auto" />
+            <Image src="/logo.png" alt="DNJ STUDIO" width={563} height={387} className="h-10 w-auto" />
             <button aria-label="메뉴 닫기" className="text-2xl leading-none" onClick={() => setMenuOpen(false)}>
               &times;
             </button>
