@@ -1,6 +1,13 @@
 import Image from "next/image";
+import Link from "next/link";
 
-const LINKS = ["Home", "Agreement", "Privacy Policy", "Help"];
+const LINKS = [
+  { label: "이용약관", href: "/policy/terms" },
+  { label: "개인정보처리방침", href: "/policy/privacy" },
+  { label: "배송정책", href: "/policy/shipping" },
+  { label: "교환/반품", href: "/policy/returns" },
+  { label: "환불정책", href: "/policy/refund" },
+];
 
 const BUSINESS_INFO = [
   "DNJ STUDIO",
@@ -23,11 +30,11 @@ export default function Footer() {
             className="h-12 w-auto brightness-0 invert"
           />
 
-          <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[11px] uppercase tracking-[0.15em] text-gray-300">
+          <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[11px] tracking-[0.1em] text-gray-300">
             {LINKS.map((l) => (
-              <a key={l} href="#" className="transition-colors hover:text-white">
-                {l}
-              </a>
+              <Link key={l.href} href={l.href} className="transition-colors hover:text-white">
+                {l.label}
+              </Link>
             ))}
           </nav>
 

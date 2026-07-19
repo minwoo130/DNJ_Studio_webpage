@@ -11,6 +11,7 @@ services:
     environment:
       - WATCHPACK_POLLING=true
       - NEXT_PUBLIC_API_URL=http://localhost:30002
+      - API_INTERNAL_URL=http://backend:4000
     depends_on:
       - backend
 
@@ -26,6 +27,7 @@ services:
       - PORT=${PORT}
       - DATABASE_URL=${DATABASE_URL}
       - JWT_SECRET=${JWT_SECRET}
+      - ADMIN_API_KEY=${ADMIN_API_KEY}
     depends_on:
       - db
 

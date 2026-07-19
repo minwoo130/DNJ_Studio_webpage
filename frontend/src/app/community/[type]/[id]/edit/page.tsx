@@ -1,0 +1,143 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import { BOARD_LABELS, isBoardType } from "@/lib/community";
+import MultiImageUpload from "@/components/MultiImageUpload";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
+
+export default function CommunityEditPage() {
+  const params = useParams<{ type: string; id: string }>();
+  const router = useRouter();
+  const boardType = isBoardType(params.type) ? params.type : null;
+
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [password, setPassword] = useState("");
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!boardType) return;
+    const token = localStorage.getItem("token");
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+    fetch(`${API_URL}/api/community/${boardType}/${params.id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          router.push(`/community/${boardType}/${params.id}`);
+          return;
+        }
+        const data = await res.json();
+        if (!data.isOwner) {
+          router.push(`/community/${boardType}/${params.id}`);
+          return;
+        }
+        setTitle(data.title);
+        setContent(data.content);
+        setIsPrivate(data.isPrivate);
+        setImageUrls(data.imageUrls ?? []);
+        setLoaded(true);
+      });
+  }, [boardType, params.id, router]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!boardType) return;
+    setError(null);
+    const token = localStorage.getItem("token");
+    const res = await fetch(`${API_URL}/api/community/${boardType}/${params.id}`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title,
+        content,
+        isPrivate,
+        password: password.trim() ? password : undefined,
+        imageUrls,
+      }),
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      setError(data.error ?? "수정에 실패했습니다.");
+      return;
+    }
+    router.push(`/community/${boardType}/${params.id}`);
+  }
+
+  if (!boardType || !loaded) {
+    return (
+      <main className="min-h-screen bg-white">
+        <Header />
+        <div className="py-24 text-center text-sm text-gray-400">불러오는 중...</div>
+        <Footer />
+      </main>
+    );
+  }
+
+  return (
+    <main className="min-h-screen bg-white">
+      <Header />
+      <section className="mx-auto max-w-screen-md px-4 py-10">
+        <h1 className="text-xl font-bold">{BOARD_LABELS[boardType]} 글 수정</h1>
+
+        <form onSubmit={handleSubmit} className="mt-6 space-y-3">
+          <input
+            type="text"
+            required
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-black"
+          />
+          <textarea
+            required
+            rows={10}
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-black"
+          />
+
+          <MultiImageUpload images={imageUrls} onChange={setImageUrls} />
+
+          {boardType !== "notice" && (
+            <div>
+              <label className="flex items-center gap-2 text-sm text-gray-600">
+                <input
+                  type="checkbox"
+                  checked={isPrivate}
+                  onChange={(e) => setIsPrivate(e.target.checked)}
+                />
+                비밀글로 작성 (비밀번호를 입력해야 볼 수 있어요)
+              </label>
+              {isPrivate && (
+                <input
+                  type="password"
+                  placeholder="비밀번호 변경 시에만 입력 (기존 비밀번호 유지하려면 비워두기)"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="mt-2 w-full max-w-xs rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-black"
+                />
+              )}
+            </div>
+          )}
+
+          {error && <p className="text-xs text-brand-red">{error}</p>}
+
+          <button type="submit" className="w-full rounded-md bg-black py-3 text-sm font-bold text-white">
+            수정 완료
+          </button>
+        </form>
+      </section>
+      <Footer />
+    </main>
+  );
+}
