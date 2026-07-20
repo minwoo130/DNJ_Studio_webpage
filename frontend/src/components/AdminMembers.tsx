@@ -12,21 +12,42 @@ type Member = {
   birthDate?: string;
   region?: string;
   isAdmin: boolean;
+  isActive: boolean;
   createdAt: string;
 };
+
+function authHeader() {
+  const token = localStorage.getItem("token");
+  return token ? { Authorization: `Bearer ${token}` } : undefined;
+}
 
 export default function AdminMembers() {
   const [members, setMembers] = useState<Member[] | null>(null);
   const [query, setQuery] = useState("");
 
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    fetch(`${API_URL}/api/admin/users`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    })
+  function load() {
+    fetch(`${API_URL}/api/admin/users`, { headers: authHeader() })
       .then((res) => (res.ok ? res.json() : []))
       .then(setMembers);
+  }
+
+  useEffect(() => {
+    load();
   }, []);
+
+  async function handleWithdraw(m: Member) {
+    if (!confirm(`${m.name}(${m.email}) 회원을 강제 탈퇴 처리할까요?\n로그인이 즉시 차단됩니다.`)) return;
+    const res = await fetch(`${API_URL}/api/admin/users/${m.id}/withdraw`, {
+      method: "PATCH",
+      headers: authHeader(),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      alert(data?.error ?? "탈퇴 처리에 실패했습니다.");
+      return;
+    }
+    load();
+  }
 
   const filtered = members?.filter(
     (m) =>
@@ -58,6 +79,7 @@ export default function AdminMembers() {
                 <th className="py-2 pr-3 font-medium">배송지역</th>
                 <th className="py-2 pr-3 font-medium">가입일</th>
                 <th className="py-2 pr-3 font-medium">권한</th>
+                <th className="py-2 pr-3 font-medium"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -78,11 +100,21 @@ export default function AdminMembers() {
                       <span className="text-xs text-gray-400">일반회원</span>
                     )}
                   </td>
+                  <td className="py-2.5 pr-3">
+                    {!m.isAdmin && (
+                      <button
+                        onClick={() => handleWithdraw(m)}
+                        className="text-xs text-brand-red underline underline-offset-2"
+                      >
+                        강제 탈퇴
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
               {filtered?.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-10 text-center text-gray-400">
+                  <td colSpan={8} className="py-10 text-center text-gray-400">
                     검색 결과가 없습니다.
                   </td>
                 </tr>

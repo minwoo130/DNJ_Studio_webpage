@@ -7,7 +7,7 @@ export interface AuthedRequest extends Request {
   isAdmin?: boolean;
 }
 
-export function requireAuth(req: AuthedRequest, res: Response, next: NextFunction) {
+export async function requireAuth(req: AuthedRequest, res: Response, next: NextFunction) {
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) {
     return res.status(401).json({ error: "인증이 필요합니다." });
@@ -15,6 +15,10 @@ export function requireAuth(req: AuthedRequest, res: Response, next: NextFunctio
   try {
     const token = header.slice("Bearer ".length);
     const payload = jwt.verify(token, process.env.JWT_SECRET as string) as { userId: number };
+    const result = await pool.query("SELECT is_active FROM users WHERE id = $1", [payload.userId]);
+    if (!result.rows[0]?.is_active) {
+      return res.status(403).json({ error: "탈퇴 처리된 계정입니다." });
+    }
     req.userId = payload.userId;
     next();
   } catch {
@@ -22,13 +26,16 @@ export function requireAuth(req: AuthedRequest, res: Response, next: NextFunctio
   }
 }
 
-export function optionalAuth(req: AuthedRequest, _res: Response, next: NextFunction) {
+export async function optionalAuth(req: AuthedRequest, _res: Response, next: NextFunction) {
   const header = req.headers.authorization;
   if (header?.startsWith("Bearer ")) {
     try {
       const token = header.slice("Bearer ".length);
       const payload = jwt.verify(token, process.env.JWT_SECRET as string) as { userId: number };
-      req.userId = payload.userId;
+      const result = await pool.query("SELECT is_active FROM users WHERE id = $1", [payload.userId]);
+      if (result.rows[0]?.is_active) {
+        req.userId = payload.userId;
+      }
     } catch {
       // 토큰이 없거나 유효하지 않아도 비로그인 상태로 계속 진행
     }

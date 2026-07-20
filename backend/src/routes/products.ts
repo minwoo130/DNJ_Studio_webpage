@@ -7,6 +7,8 @@ import { requireAuth, requireAdmin } from "../middleware/auth";
 
 const router = Router();
 
+const MAX_IMAGE_SIZE = 15 * 1024 * 1024;
+
 const upload = multer({
   storage: multer.diskStorage({
     destination: path.join(__dirname, "..", "..", "uploads", "products"),
@@ -15,7 +17,7 @@ const upload = multer({
       cb(null, `${Date.now()}-${crypto.randomBytes(6).toString("hex")}${ext}`);
     },
   }),
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: MAX_IMAGE_SIZE },
   fileFilter: (_req, file, cb) => {
     if (!file.mimetype.startsWith("image/")) {
       return cb(new Error("이미지 파일만 업로드할 수 있습니다."));
@@ -80,11 +82,19 @@ router.get("/:id", async (req, res) => {
   res.json(toProduct(result.rows[0]));
 });
 
-router.post("/upload", requireAuth, requireAdmin, upload.single("image"), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: "이미지 파일이 필요합니다." });
-  }
-  res.status(201).json({ url: `/uploads/products/${req.file.filename}` });
+router.post("/upload", requireAuth, requireAdmin, (req, res) => {
+  upload.single("image")(req, res, (err) => {
+    if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
+      return res.status(400).json({ error: "이미지 용량은 15MB 이하만 업로드할 수 있습니다." });
+    }
+    if (err) {
+      return res.status(400).json({ error: err.message || "이미지 업로드에 실패했습니다." });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: "이미지 파일이 필요합니다." });
+    }
+    res.status(201).json({ url: `/uploads/products/${req.file.filename}` });
+  });
 });
 
 router.post("/", requireAuth, requireAdmin, async (req, res) => {

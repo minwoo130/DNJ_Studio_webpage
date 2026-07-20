@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { Product, ProductBadge, ProductCategory } from "@/data/products";
+import { getCategorySubTags } from "@/data/products";
 import { resolveImageUrl } from "@/lib/image";
 import RichTextEditor from "@/components/RichTextEditor";
 
@@ -15,8 +16,8 @@ type FormState = {
   price: string;
   originalPrice: string;
   badge: string;
-  sold: string;
   category: ProductCategory;
+  subTags: string[];
   tags: string;
   imageUrl: string;
   detailContent: string;
@@ -30,8 +31,8 @@ const emptyForm: FormState = {
   price: "",
   originalPrice: "",
   badge: "",
-  sold: "",
   category: "TOP",
+  subTags: [],
   tags: "",
   imageUrl: "",
   detailContent: "",
@@ -61,15 +62,16 @@ export default function AdminInventory() {
   }, []);
 
   function startEdit(p: Product) {
+    const subOptions = getCategorySubTags(p.category);
     setForm({
       id: p.id,
       name: p.name,
       price: String(p.price),
       originalPrice: p.originalPrice ? String(p.originalPrice) : "",
       badge: p.badge ?? "",
-      sold: p.sold ?? "",
       category: p.category,
-      tags: p.tags.join(", "),
+      subTags: p.tags.filter((t) => subOptions.includes(t)),
+      tags: p.tags.filter((t) => !subOptions.includes(t)).join(", "),
       imageUrl: p.imageUrl ?? "",
       detailContent: p.detailContent ?? "",
       isWeeklyBest: p.isWeeklyBest ?? false,
@@ -113,12 +115,16 @@ export default function AdminInventory() {
       price: Number(form.price),
       originalPrice: form.originalPrice ? Number(form.originalPrice) : null,
       badge: form.badge || null,
-      sold: form.sold.trim() || null,
       category: form.category,
-      tags: form.tags
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean),
+      tags: Array.from(
+        new Set([
+          ...form.subTags,
+          ...form.tags
+            .split(",")
+            .map((t) => t.trim())
+            .filter(Boolean),
+        ])
+      ),
       imageUrl: form.imageUrl || null,
       detailContent: form.detailContent,
       isWeeklyBest: form.isWeeklyBest,
@@ -163,7 +169,14 @@ export default function AdminInventory() {
         />
         <select
           value={form.category}
-          onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as ProductCategory }))}
+          onChange={(e) => {
+            const category = e.target.value as ProductCategory;
+            setForm((f) => ({
+              ...f,
+              category,
+              subTags: f.subTags.filter((t) => getCategorySubTags(category).includes(t)),
+            }));
+          }}
           className="rounded-md border border-gray-300 px-3 py-2 text-sm"
         >
           {CATEGORIES.map((c) => (
@@ -184,6 +197,34 @@ export default function AdminInventory() {
             </option>
           ))}
         </select>
+
+        {getCategorySubTags(form.category).length > 0 && (
+          <div className="col-span-2 sm:col-span-4">
+            <p className="mb-1.5 text-xs font-semibold text-gray-500">세부 카테고리 (선택, 여러 개 가능)</p>
+            <div className="flex flex-wrap gap-1.5">
+              {getCategorySubTags(form.category).map((t) => {
+                const active = form.subTags.includes(t);
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() =>
+                      setForm((f) => ({
+                        ...f,
+                        subTags: active ? f.subTags.filter((x) => x !== t) : [...f.subTags, t],
+                      }))
+                    }
+                    className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                      active ? "border-black bg-black text-white" : "border-gray-300 text-gray-500 hover:border-black"
+                    }`}
+                  >
+                    #{t}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <div className="col-span-2 flex items-center gap-4 sm:col-span-4">
           <label className="flex items-center gap-1.5 text-sm text-gray-600">
@@ -219,13 +260,7 @@ export default function AdminInventory() {
           className="rounded-md border border-gray-300 px-3 py-2 text-sm"
         />
         <input
-          placeholder="누적 판매 문구(선택)"
-          value={form.sold}
-          onChange={(e) => setForm((f) => ({ ...f, sold: e.target.value }))}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-        />
-        <input
-          placeholder="태그 (쉼표로 구분)"
+          placeholder="추가 태그 (쉼표로 구분, 예: 입고지연)"
           value={form.tags}
           onChange={(e) => setForm((f) => ({ ...f, tags: e.target.value }))}
           className="rounded-md border border-gray-300 px-3 py-2 text-sm"

@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
   address       VARCHAR(255),
   address_detail VARCHAR(255),
   is_admin      BOOLEAN NOT NULL DEFAULT false,
+  is_active     BOOLEAN NOT NULL DEFAULT true,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

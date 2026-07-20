@@ -71,12 +71,15 @@ router.post("/login", async (req, res) => {
   }
 
   const result = await pool.query(
-    "SELECT id, email, name, password_hash, is_admin FROM users WHERE email = $1",
+    "SELECT id, email, name, password_hash, is_admin, is_active FROM users WHERE email = $1",
     [email]
   );
   const user = result.rows[0];
   if (!user || !(await bcrypt.compare(password, user.password_hash))) {
     return res.status(401).json({ error: "이메일 또는 비밀번호가 올바르지 않습니다." });
+  }
+  if (!user.is_active) {
+    return res.status(403).json({ error: "탈퇴 처리된 계정입니다." });
   }
 
   const token = issueToken(user.id);

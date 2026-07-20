@@ -1,14 +1,15 @@
 import { Router } from "express";
 import { pool } from "../db/pool";
 import { requireAdminKey } from "../middleware/adminAuth";
-import { requireAuth, requireAdmin } from "../middleware/auth";
+import { requireAuth, requireAdmin, type AuthedRequest } from "../middleware/auth";
 
 const router = Router();
 
 router.get("/users", requireAuth, requireAdmin, async (_req, res) => {
   const result = await pool.query(
-    `SELECT id, email, name, phone, birth_date, region, is_admin, created_at
+    `SELECT id, email, name, phone, birth_date, region, is_admin, is_active, created_at
      FROM users
+     WHERE is_active = true
      ORDER BY id DESC`
   );
   res.json(
@@ -20,9 +21,28 @@ router.get("/users", requireAuth, requireAdmin, async (_req, res) => {
       birthDate: u.birth_date ?? undefined,
       region: u.region ?? undefined,
       isAdmin: u.is_admin,
+      isActive: u.is_active,
       createdAt: u.created_at,
     }))
   );
+});
+
+router.patch("/users/:id/withdraw", requireAuth, requireAdmin, async (req: AuthedRequest, res) => {
+  const targetId = Number(req.params.id);
+  if (targetId === req.userId) {
+    return res.status(400).json({ error: "본인 계정은 탈퇴 처리할 수 없습니다." });
+  }
+
+  const target = await pool.query("SELECT is_admin FROM users WHERE id = $1", [targetId]);
+  if (target.rows.length === 0) {
+    return res.status(404).json({ error: "회원을 찾을 수 없습니다." });
+  }
+  if (target.rows[0].is_admin) {
+    return res.status(400).json({ error: "관리자 계정은 탈퇴 처리할 수 없습니다." });
+  }
+
+  await pool.query("UPDATE users SET is_active = false WHERE id = $1", [targetId]);
+  res.json({ ok: true });
 });
 
 router.get("/orders", requireAuth, requireAdmin, async (_req, res) => {

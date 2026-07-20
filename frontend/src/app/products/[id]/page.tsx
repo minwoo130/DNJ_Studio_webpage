@@ -6,10 +6,6 @@ import ProductReviews from "@/components/ProductReviews";
 import { fetchProduct } from "@/lib/products-api";
 import { resolveImageUrl } from "@/lib/image";
 
-function mileage(price: number) {
-  return Math.round(price * 0.025);
-}
-
 function discountRate(price: number, originalPrice?: number) {
   if (!originalPrice) return null;
   return Math.round((1 - price / originalPrice) * 100);
@@ -59,11 +55,6 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
               </span>
             )}
           </div>
-          <p className="mt-1 text-xs text-gray-400">
-            적립금 {mileage(product.price).toLocaleString()}원 (2.5%)
-          </p>
-          {product.sold && <p className="mt-1 text-xs text-gray-400">{product.sold}</p>}
-
           <ProductActions productId={product.id} />
 
           {!product.detailContent && (

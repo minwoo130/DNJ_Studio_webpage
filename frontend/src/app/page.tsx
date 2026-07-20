@@ -53,10 +53,17 @@ export default async function Home() {
         <ul className="divide-y divide-gray-100 text-sm text-gray-600">
           {NOTICES.length === 0 && <li className="py-2.5 text-gray-400">등록된 공지가 없습니다.</li>}
           {NOTICES.map((n) => (
-            <li key={n.id} className="py-2.5">
-              <Link href={`/community/notice/${n.id}`} className="hover:text-black">
+            <li key={n.id} className="flex items-center justify-between gap-3 py-2.5">
+              <Link href={`/community/notice/${n.id}`} className="truncate hover:text-black">
                 {n.title}
               </Link>
+              <span className="shrink-0 text-xs text-gray-400">
+                {new Date(n.createdAt).toLocaleDateString("ko-KR", {
+                  year: "numeric",
+                  month: "2-digit",
+                  day: "2-digit",
+                })}
+              </span>
             </li>
           ))}
         </ul>

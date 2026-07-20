@@ -111,7 +111,6 @@ export default function ProductGrid({ products }: { products: Product[] }) {
                 <p className="text-xs text-gray-400">
                   적립금 {mileage(p.price).toLocaleString()}원 (2.5%)
                 </p>
-                {p.sold && <p className="text-xs text-gray-400">{p.sold}</p>}
               </div>
             </article>
           </Link>
