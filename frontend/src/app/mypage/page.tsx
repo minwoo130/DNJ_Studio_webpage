@@ -76,7 +76,7 @@ export default function MyPage() {
   const [error, setError] = useState<string | null>(null);
 
   const authHeader = useCallback(() => {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     return token ? { Authorization: `Bearer ${token}` } : null;
   }, []);
 
@@ -95,8 +95,8 @@ export default function MyPage() {
     ]);
 
     if (meRes.status === 401) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("user");
       router.push("/login");
       return;
     }
@@ -150,8 +150,8 @@ export default function MyPage() {
   }
 
   function handleLogout() {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("user");
     router.push("/");
   }
 

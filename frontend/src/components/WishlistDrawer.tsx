@@ -18,7 +18,7 @@ export default function WishlistDrawer({ open, onClose }: { open: boolean; onClo
   const [needsLogin, setNeedsLogin] = useState(false);
 
   const load = useCallback(async () => {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     if (!token) {
       setNeedsLogin(true);
       setItems([]);
@@ -47,7 +47,7 @@ export default function WishlistDrawer({ open, onClose }: { open: boolean; onClo
   }, [open]);
 
   async function removeItem(productId: number) {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     if (!token) return;
     await fetch(`${API_URL}/api/wishlist/${productId}`, {
       method: "DELETE",

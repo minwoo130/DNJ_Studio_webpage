@@ -54,7 +54,7 @@ export default function CommunityDetailPage() {
 
   useEffect(() => {
     try {
-      const user = JSON.parse(localStorage.getItem("user") ?? "null");
+      const user = JSON.parse(sessionStorage.getItem("user") ?? "null");
       setIsAdmin(Boolean(user?.isAdmin));
     } catch {
       setIsAdmin(false);
@@ -62,7 +62,7 @@ export default function CommunityDetailPage() {
   }, []);
 
   const authHeader = useCallback(() => {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     return token ? { Authorization: `Bearer ${token}` } : undefined;
   }, []);
 

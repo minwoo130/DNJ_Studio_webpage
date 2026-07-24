@@ -30,8 +30,8 @@ export default function LoginPage() {
         setError(data.error ?? "로그인에 실패했습니다.");
         return;
       }
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
+      sessionStorage.setItem("token", data.token);
+      sessionStorage.setItem("user", JSON.stringify(data.user));
       router.push("/");
     } catch {
       setError("서버에 연결할 수 없습니다.");

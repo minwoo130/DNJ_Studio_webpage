@@ -1,11 +1,6 @@
 node_modules/
 .next/
-.env
 .env.*.local
 *.log
 *.tsbuildinfo
 *.swp
-backend/uploads/products/*
-!backend/uploads/products/.gitkeep
-backend/uploads/reviews/*
-!backend/uploads/reviews/.gitkeep

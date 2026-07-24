@@ -64,13 +64,13 @@ export default function ProductReviews({ productId }: { productId: number }) {
   useEffect(() => {
     let admin = false;
     try {
-      admin = Boolean(JSON.parse(localStorage.getItem("user") ?? "null")?.isAdmin);
+      admin = Boolean(JSON.parse(sessionStorage.getItem("user") ?? "null")?.isAdmin);
     } catch {
       admin = false;
     }
     setIsAdmin(admin);
 
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     if (!token) {
       setCheckedAccess(true);
       return;
@@ -91,7 +91,7 @@ export default function ProductReviews({ productId }: { productId: number }) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     if (!token) {
       router.push("/login");
       return;

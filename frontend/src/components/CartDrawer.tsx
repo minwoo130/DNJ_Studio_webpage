@@ -20,7 +20,7 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
   const [needsLogin, setNeedsLogin] = useState(false);
 
   const load = useCallback(async () => {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     if (!token) {
       setNeedsLogin(true);
       setItems([]);
@@ -52,7 +52,7 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
 
   async function updateQuantity(productId: number, quantity: number) {
     if (quantity < 1) return;
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     if (!token) return;
     await fetch(`${API_URL}/api/cart/${productId}`, {
       method: "PATCH",
@@ -63,7 +63,7 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
   }
 
   async function removeItem(productId: number) {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     if (!token) return;
     await fetch(`${API_URL}/api/cart/${productId}`, {
       method: "DELETE",

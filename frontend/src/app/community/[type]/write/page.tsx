@@ -24,14 +24,14 @@ export default function CommunityWritePage() {
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     if (!token) {
       router.push("/login");
       return;
     }
     if (boardType === "notice") {
       try {
-        const user = JSON.parse(localStorage.getItem("user") ?? "null");
+        const user = JSON.parse(sessionStorage.getItem("user") ?? "null");
         if (!user?.isAdmin) {
           router.push(`/community/${boardType}`);
           return;
@@ -48,7 +48,7 @@ export default function CommunityWritePage() {
     e.preventDefault();
     if (!boardType) return;
     setError(null);
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     const res = await fetch(`${API_URL}/api/community/${boardType}`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },

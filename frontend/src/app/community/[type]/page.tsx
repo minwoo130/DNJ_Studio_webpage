@@ -48,7 +48,7 @@ function CommunityListPageInner() {
 
   useEffect(() => {
     try {
-      const user = JSON.parse(localStorage.getItem("user") ?? "null");
+      const user = JSON.parse(sessionStorage.getItem("user") ?? "null");
       setIsAdmin(Boolean(user?.isAdmin));
     } catch {
       setIsAdmin(false);

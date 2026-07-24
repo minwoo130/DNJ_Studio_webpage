@@ -7,7 +7,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 const MAX_IMAGES = 5;
 
 function authHeader() {
-  const token = localStorage.getItem("token");
+  const token = sessionStorage.getItem("token");
   return token ? { Authorization: `Bearer ${token}` } : undefined;
 }
 

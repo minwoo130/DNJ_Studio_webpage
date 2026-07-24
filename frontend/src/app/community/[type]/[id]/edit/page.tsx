@@ -24,7 +24,7 @@ export default function CommunityEditPage() {
 
   useEffect(() => {
     if (!boardType) return;
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     if (!token) {
       router.push("/login");
       return;
@@ -54,7 +54,7 @@ export default function CommunityEditPage() {
     e.preventDefault();
     if (!boardType) return;
     setError(null);
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     const res = await fetch(`${API_URL}/api/community/${boardType}/${params.id}`, {
       method: "PUT",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },

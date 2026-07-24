@@ -44,7 +44,7 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
 
   function authHeader() {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     return token ? { Authorization: `Bearer ${token}` } : null;
   }
 

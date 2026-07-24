@@ -22,7 +22,7 @@ export default function ProductGrid({ products }: { products: Product[] }) {
   const [wishlisted, setWishlisted] = useState<Set<number>>(new Set());
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     if (!token) return;
     fetch(`${API_URL}/api/wishlist`, { headers: { Authorization: `Bearer ${token}` } })
       .then((res) => (res.ok ? res.json() : []))
@@ -34,7 +34,7 @@ export default function ProductGrid({ products }: { products: Product[] }) {
     e.preventDefault();
     e.stopPropagation();
 
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     if (!token) {
       router.push("/login");
       return;

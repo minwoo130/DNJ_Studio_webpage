@@ -18,7 +18,7 @@ export default function AdminPage() {
   useEffect(() => {
     let isAdmin = false;
     try {
-      isAdmin = Boolean(JSON.parse(localStorage.getItem("user") ?? "null")?.isAdmin);
+      isAdmin = Boolean(JSON.parse(sessionStorage.getItem("user") ?? "null")?.isAdmin);
     } catch {
       isAdmin = false;
     }

@@ -11,7 +11,7 @@ export default function ProductActions({ productId }: { productId: number }) {
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     if (!token) return;
     fetch(`${API_URL}/api/wishlist`, { headers: { Authorization: `Bearer ${token}` } })
       .then((res) => (res.ok ? res.json() : []))
@@ -20,7 +20,7 @@ export default function ProductActions({ productId }: { productId: number }) {
   }, [productId]);
 
   function authHeader() {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     if (!token) {
       router.push("/login");
       return null;

@@ -67,12 +67,12 @@ export default function Header({ overlay = false }: { overlay?: boolean }) {
 
   useEffect(() => {
     try {
-      const stored = JSON.parse(localStorage.getItem("user") ?? "null");
+      const stored = JSON.parse(sessionStorage.getItem("user") ?? "null");
       setIsAdmin(Boolean(stored?.isAdmin));
     } catch {
       setIsAdmin(false);
     }
-    setIsLoggedIn(Boolean(localStorage.getItem("token")));
+    setIsLoggedIn(Boolean(sessionStorage.getItem("token")));
   }, []);
 
   const navItems: NavItem[] = isAdmin
