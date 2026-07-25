@@ -10,10 +10,11 @@ type Slide = {
   title: string;
   cta?: string;
   slotLabels: [string, string, string];
+  slotPhotos?: [string, string, string];
 };
 
-// TODO: photo slots are empty placeholders — drop real photography into
-// frontend/public/banners/ and wire each slot to an <Image> once files exist.
+// TODO: remaining photo slots (best/mood 슬라이드 6장) are still empty placeholders —
+// drop real photography into frontend/public/banners/ and wire slotPhotos once files exist.
 const SLIDES: Slide[] = [
   {
     id: "seasonal",
@@ -22,6 +23,7 @@ const SLIDES: Slide[] = [
     title: "2026 여름 신상 입고",
     cta: "계절상품 보러가기",
     slotLabels: ["사진 1", "사진 2", "사진 3"],
+    slotPhotos: ["/banners/seasonal-1.jpg", "/banners/seasonal-2.jpg", "/banners/seasonal-3.jpg"],
   },
   {
     id: "best",
@@ -41,7 +43,16 @@ const SLIDES: Slide[] = [
 
 const INTERVAL_MS = 2000;
 
-function PhotoSlot({ label }: { label: string }) {
+function PhotoSlot({ label, photo }: { label: string; photo?: string }) {
+  if (photo) {
+    return (
+      <div className="relative h-full w-1/3 overflow-hidden border-r border-white/10 last:border-r-0">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={photo} alt={label} className="h-full w-full object-cover" />
+      </div>
+    );
+  }
+
   return (
     <div className="relative h-full w-1/3 overflow-hidden border-r border-white/10 bg-gradient-to-br from-gray-700 to-gray-900 last:border-r-0">
       <div className="absolute inset-0 flex items-center justify-center">
@@ -76,7 +87,7 @@ export default function HeroBanner() {
           <>
             <div className="flex h-full w-full">
               {slide.slotLabels.map((label, i) => (
-                <PhotoSlot key={i} label={label} />
+                <PhotoSlot key={i} label={label} photo={slide.slotPhotos?.[i]} />
               ))}
             </div>
             <div className="absolute inset-0 bg-black/25" />

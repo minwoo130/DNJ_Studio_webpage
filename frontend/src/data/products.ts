@@ -12,8 +12,11 @@ export type Product = {
   tags: string[];
   imageUrl?: string;
   detailContent?: string;
+  detailImages?: string[];
   isWeeklyBest?: boolean;
   isNewArrival?: boolean;
+  bestOrder?: number;
+  newOrder?: number;
 };
 
 // Static nav taxonomy — which subcategory tags show in the header dropdown per

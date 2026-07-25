@@ -18,11 +18,15 @@ type FormState = {
   badge: string;
   category: ProductCategory;
   subTags: string[];
-  tags: string;
   imageUrl: string;
   detailContent: string;
+  detailImages: string[];
   isWeeklyBest: boolean;
   isNewArrival: boolean;
+  isSameDayShip: boolean;
+  isDelayed: boolean;
+  bestOrder: string;
+  newOrder: string;
 };
 
 const emptyForm: FormState = {
@@ -33,12 +37,19 @@ const emptyForm: FormState = {
   badge: "",
   category: "TOP",
   subTags: [],
-  tags: "",
   imageUrl: "",
   detailContent: "",
+  detailImages: [],
   isWeeklyBest: false,
   isNewArrival: false,
+  isSameDayShip: false,
+  isDelayed: false,
+  bestOrder: "",
+  newOrder: "",
 };
+
+const SAME_DAY_SHIP_TAG = "당일출발";
+const DELAYED_TAG = "입고지연";
 
 function authHeader() {
   const token = sessionStorage.getItem("token");
@@ -49,6 +60,7 @@ export default function AdminInventory() {
   const [products, setProducts] = useState<Product[] | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [uploading, setUploading] = useState(false);
+  const [detailUploading, setDetailUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function load() {
@@ -71,11 +83,15 @@ export default function AdminInventory() {
       badge: p.badge ?? "",
       category: p.category,
       subTags: p.tags.filter((t) => subOptions.includes(t)),
-      tags: p.tags.filter((t) => !subOptions.includes(t)).join(", "),
       imageUrl: p.imageUrl ?? "",
       detailContent: p.detailContent ?? "",
+      detailImages: p.detailImages ?? [],
       isWeeklyBest: p.isWeeklyBest ?? false,
       isNewArrival: p.isNewArrival ?? false,
+      isSameDayShip: p.tags.includes(SAME_DAY_SHIP_TAG),
+      isDelayed: p.tags.includes(DELAYED_TAG),
+      bestOrder: p.bestOrder != null ? String(p.bestOrder) : "",
+      newOrder: p.newOrder != null ? String(p.newOrder) : "",
     });
     setError(null);
   }
@@ -101,12 +117,58 @@ export default function AdminInventory() {
     setForm((f) => ({ ...f, imageUrl: data.url }));
   }
 
+  async function handleDetailImagesChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (!files.length) return;
+
+    setDetailUploading(true);
+    setError(null);
+
+    // 순차 업로드: 선택한 순서 그대로 배열 끝에 이어붙여야 화면에 위→아래로 그 순서대로 쌓임
+    for (const file of files) {
+      const body = new FormData();
+      body.append("image", file);
+      const res = await fetch(`${API_URL}/api/products/upload`, {
+        method: "POST",
+        headers: authHeader(),
+        body,
+      });
+      if (!res.ok) {
+        setError(`"${file.name}" 업로드에 실패했습니다.`);
+        continue;
+      }
+      const data = await res.json();
+      setForm((f) => ({ ...f, detailImages: [...f.detailImages, data.url as string] }));
+    }
+
+    setDetailUploading(false);
+  }
+
+  function moveDetailImage(index: number, direction: -1 | 1) {
+    setForm((f) => {
+      const target = index + direction;
+      if (target < 0 || target >= f.detailImages.length) return f;
+      const next = [...f.detailImages];
+      [next[index], next[target]] = [next[target], next[index]];
+      return { ...f, detailImages: next };
+    });
+  }
+
+  function removeDetailImage(index: number) {
+    setForm((f) => ({ ...f, detailImages: f.detailImages.filter((_, i) => i !== index) }));
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
     if (!form.name.trim() || !form.price) {
       setError("상품명과 가격은 필수입니다.");
+      return;
+    }
+    if (detailUploading) {
+      setError("사진 업로드가 끝난 후 저장해주세요.");
       return;
     }
 
@@ -119,16 +181,17 @@ export default function AdminInventory() {
       tags: Array.from(
         new Set([
           ...form.subTags,
-          ...form.tags
-            .split(",")
-            .map((t) => t.trim())
-            .filter(Boolean),
+          ...(form.isSameDayShip ? [SAME_DAY_SHIP_TAG] : []),
+          ...(form.isDelayed ? [DELAYED_TAG] : []),
         ])
       ),
       imageUrl: form.imageUrl || null,
       detailContent: form.detailContent,
+      detailImages: form.detailImages,
       isWeeklyBest: form.isWeeklyBest,
       isNewArrival: form.isNewArrival,
+      bestOrder: form.isWeeklyBest && form.bestOrder ? Number(form.bestOrder) : null,
+      newOrder: form.isNewArrival && form.newOrder ? Number(form.newOrder) : null,
     };
 
     const url = form.id ? `${API_URL}/api/products/${form.id}` : `${API_URL}/api/products`;
@@ -146,6 +209,16 @@ export default function AdminInventory() {
 
     setForm(emptyForm);
     load();
+  }
+
+  function availableOrders(field: "bestOrder" | "newOrder") {
+    const used = new Set(
+      (products ?? [])
+        .filter((p) => p.id !== form.id)
+        .map((p) => p[field])
+        .filter((v): v is number => v != null)
+    );
+    return [1, 2, 3, 4, 5, 6].filter((n) => !used.has(n));
   }
 
   async function handleDelete(id: number) {
@@ -226,24 +299,71 @@ export default function AdminInventory() {
           </div>
         )}
 
-        <div className="col-span-2 flex items-center gap-4 sm:col-span-4">
+        <div className="col-span-2 flex flex-wrap items-center gap-4 sm:col-span-4">
           <label className="flex items-center gap-1.5 text-sm text-gray-600">
             <input
               type="checkbox"
               checked={form.isWeeklyBest}
               onChange={(e) => setForm((f) => ({ ...f, isWeeklyBest: e.target.checked }))}
             />
-            WEEKLY BEST 노출
+            BEST
           </label>
+          {form.isWeeklyBest && (
+            <select
+              value={form.bestOrder}
+              onChange={(e) => setForm((f) => ({ ...f, bestOrder: e.target.value }))}
+              className="rounded-md border border-gray-300 px-2 py-1 text-xs"
+            >
+              <option value="">순서 선택</option>
+              {availableOrders("bestOrder").map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          )}
           <label className="flex items-center gap-1.5 text-sm text-gray-600">
             <input
               type="checkbox"
               checked={form.isNewArrival}
               onChange={(e) => setForm((f) => ({ ...f, isNewArrival: e.target.checked }))}
             />
-            NEW ARRIVALS 노출
+            NEW 5%
+          </label>
+          {form.isNewArrival && (
+            <select
+              value={form.newOrder}
+              onChange={(e) => setForm((f) => ({ ...f, newOrder: e.target.value }))}
+              className="rounded-md border border-gray-300 px-2 py-1 text-xs"
+            >
+              <option value="">순서 선택</option>
+              {availableOrders("newOrder").map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          )}
+          <label className="flex items-center gap-1.5 text-sm text-gray-600">
+            <input
+              type="checkbox"
+              checked={form.isSameDayShip}
+              onChange={(e) => setForm((f) => ({ ...f, isSameDayShip: e.target.checked }))}
+            />
+            당일출발
+          </label>
+          <label className="flex items-center gap-1.5 text-sm text-gray-600">
+            <input
+              type="checkbox"
+              checked={form.isDelayed}
+              onChange={(e) => setForm((f) => ({ ...f, isDelayed: e.target.checked }))}
+            />
+            입고지연
           </label>
         </div>
+        <p className="col-span-2 -mt-2 text-[11px] text-gray-400 sm:col-span-4">
+          BEST / NEW 5% 순서는 1~6 중에서 고를 수 있고(왼쪽부터 오름차순 노출), 상품마다 겹치지 않게 자동으로 이미 쓰인 번호는 목록에서 빠집니다. 순서를 정하지 않은 상품은 뒤로 밀려서 6개 안에 못 들 수 있어요.
+        </p>
 
         <input
           type="number"
@@ -259,42 +379,92 @@ export default function AdminInventory() {
           onChange={(e) => setForm((f) => ({ ...f, originalPrice: e.target.value }))}
           className="rounded-md border border-gray-300 px-3 py-2 text-sm"
         />
-        <input
-          placeholder="추가 태그 (쉼표로 구분, 예: 입고지연)"
-          value={form.tags}
-          onChange={(e) => setForm((f) => ({ ...f, tags: e.target.value }))}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-        />
 
-        <div className="col-span-2 flex items-center gap-3 sm:col-span-4">
-          <input type="file" accept="image/*" onChange={handleImageChange} className="text-xs" />
-          {uploading && <span className="text-xs text-gray-400">업로드 중...</span>}
-          {form.imageUrl && (
-            <div className="relative h-14 w-11 shrink-0 overflow-hidden rounded bg-gray-100">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={resolveImageUrl(form.imageUrl, form.id ?? 0)}
-                alt="미리보기"
-                className="h-full w-full object-cover"
-              />
+        <div className="col-span-2 sm:col-span-4">
+          <p className="mb-1.5 text-xs font-semibold text-gray-500">대표(썸네일) 이미지 — 목록/카드에 노출되는 사진 1장</p>
+          <div className="flex items-center gap-3">
+            <input type="file" accept="image/*" onChange={handleImageChange} className="text-xs" />
+            {uploading && <span className="text-xs text-gray-400">업로드 중...</span>}
+            {form.imageUrl && (
+              <div className="relative h-14 w-11 shrink-0 overflow-hidden rounded bg-gray-100">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={resolveImageUrl(form.imageUrl, form.id ?? 0)}
+                  alt="미리보기"
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="col-span-2 sm:col-span-4">
+          <p className="mb-1.5 text-xs font-semibold text-gray-500">
+            상세 이미지 — 여러 장 선택 가능, 등록한 순서 그대로 상세페이지에 위→아래로 표시됩니다
+          </p>
+          <input type="file" accept="image/*" multiple onChange={handleDetailImagesChange} className="text-xs" />
+          {detailUploading && <span className="ml-2 text-xs text-gray-400">사진 업로드 중...</span>}
+
+          {form.detailImages.length > 0 && (
+            <div className="mt-3 flex flex-col gap-2">
+              {form.detailImages.map((url, index) => (
+                <div key={url + index} className="flex items-center gap-3 rounded-md border border-gray-200 p-2">
+                  <span className="w-5 shrink-0 text-center text-xs text-gray-400">{index + 1}</span>
+                  <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded bg-gray-100">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={resolveImageUrl(url, form.id ?? 0)} alt={`상세 이미지 ${index + 1}`} className="h-full w-full object-cover" />
+                  </div>
+                  <div className="flex flex-1 justify-end gap-1">
+                    <button
+                      type="button"
+                      onClick={() => moveDetailImage(index, -1)}
+                      disabled={index === 0}
+                      className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-600 disabled:opacity-30"
+                    >
+                      ▲
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveDetailImage(index, 1)}
+                      disabled={index === form.detailImages.length - 1}
+                      className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-600 disabled:opacity-30"
+                    >
+                      ▼
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeDetailImage(index)}
+                      className="rounded border border-gray-300 px-2 py-1 text-xs text-brand-red"
+                    >
+                      삭제
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
 
         <div className="col-span-2 sm:col-span-4">
-          <p className="mb-2 text-xs font-semibold text-gray-500">상세페이지 (텍스트 + 사진 자유 배치)</p>
+          <p className="mb-2 text-xs font-semibold text-gray-500">상세 설명 (텍스트, 필요하면 사진도 자유 배치 가능)</p>
           <RichTextEditor
             value={form.detailContent}
             onChange={(html) => setForm((f) => ({ ...f, detailContent: html }))}
+            onUploadingChange={setDetailUploading}
           />
         </div>
 
         {error && <p className="col-span-2 text-xs text-brand-red sm:col-span-4">{error}</p>}
 
-        <div className="col-span-2 flex gap-2 sm:col-span-4">
-          <button type="submit" className="rounded-md bg-black px-4 py-2 text-xs font-bold text-white">
+        <div className="col-span-2 flex items-center gap-2 sm:col-span-4">
+          <button
+            type="submit"
+            disabled={detailUploading}
+            className="rounded-md bg-black px-4 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
+          >
             {form.id ? "수정 저장" : "등록"}
           </button>
+          {detailUploading && <span className="text-xs text-gray-400">사진 업로드가 끝나면 저장할 수 있어요...</span>}
           {form.id && (
             <button
               type="button"
@@ -323,6 +493,8 @@ export default function AdminInventory() {
               <p className="truncate text-sm font-medium">{p.name}</p>
               <p className="text-xs text-gray-400">
                 {p.category} · {p.price.toLocaleString()}원{p.badge ? ` · ${p.badge}` : ""}
+                {p.isWeeklyBest ? ` · BEST${p.bestOrder != null ? `(${p.bestOrder})` : ""}` : ""}
+                {p.isNewArrival ? ` · NEW 5%${p.newOrder != null ? `(${p.newOrder})` : ""}` : ""}
               </p>
             </div>
             <button onClick={() => startEdit(p)} className="text-xs text-gray-400 underline underline-offset-2">

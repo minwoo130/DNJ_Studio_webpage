@@ -57,13 +57,24 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
           </div>
           <ProductActions productId={product.id} />
 
-          {!product.detailContent && (
+          {!product.detailContent && !product.detailImages?.length && (
             <p className="mt-6 text-xs text-gray-400">
               상세 설명 및 사이즈 정보는 상품 등록 기능 구현 후 노출됩니다. (준비중)
             </p>
           )}
         </div>
       </section>
+
+      {product.detailImages && product.detailImages.length > 0 && (
+        <section className="mx-auto max-w-screen-lg border-t border-gray-100 px-4 py-8">
+          <div className="mx-auto flex max-w-2xl flex-col">
+            {product.detailImages.map((url, index) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img key={url + index} src={resolveImageUrl(url, product.id)} alt={`${product.name} 상세 이미지 ${index + 1}`} className="block w-full" />
+            ))}
+          </div>
+        </section>
+      )}
 
       {product.detailContent && (
         <section className="mx-auto max-w-screen-lg border-t border-gray-100 px-4 py-8">

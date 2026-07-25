@@ -8,11 +8,13 @@ export async function fetchProducts(params?: {
   category?: ProductCategory;
   tag?: string;
   section?: "best" | "new";
+  limit?: number;
 }): Promise<Product[]> {
   const search = new URLSearchParams();
   if (params?.category) search.set("category", params.category);
   if (params?.tag) search.set("tag", params.tag);
   if (params?.section) search.set("section", params.section);
+  if (params?.limit) search.set("limit", String(params.limit));
   const query = search.toString();
 
   const res = await fetch(`${API_BASE}/api/products${query ? `?${query}` : ""}`, {

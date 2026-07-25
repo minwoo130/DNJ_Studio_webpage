@@ -37,8 +37,8 @@ function SectionHeading({
 
 export default async function Home() {
   const [WEEKLY_BEST, NEW_ARRIVALS, NOTICES] = await Promise.all([
-    fetchProducts({ section: "best" }),
-    fetchProducts({ section: "new" }),
+    fetchProducts({ section: "best", limit: 6 }),
+    fetchProducts({ section: "new", limit: 6 }),
     fetchNotices(5),
   ]);
 

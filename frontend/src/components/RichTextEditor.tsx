@@ -64,10 +64,12 @@ export default function RichTextEditor({
   value,
   onChange,
   uploadEndpoint = "/api/products/upload",
+  onUploadingChange,
 }: {
   value: string;
   onChange: (html: string) => void;
   uploadEndpoint?: string;
+  onUploadingChange?: (uploading: boolean) => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -78,6 +80,7 @@ export default function RichTextEditor({
     if (!imageFiles.length) return;
 
     setUploading(true);
+    onUploadingChange?.(true);
     setUploadError(null);
 
     for (const file of imageFiles) {
@@ -103,6 +106,7 @@ export default function RichTextEditor({
     }
 
     setUploading(false);
+    onUploadingChange?.(false);
   }
 
   const editor = useEditor({
@@ -290,7 +294,8 @@ export default function RichTextEditor({
       )}
       <EditorContent editor={editor} />
       <p className="border-t border-gray-100 px-3 py-1.5 text-[11px] text-gray-400">
-        사진은 여러 장 한번에 선택하거나, 파일을 끌어다 놓거나(드래그), 복사한 이미지를 붙여넣기(Ctrl+V)해도 추가됩니다.
+        사진은 여러 장 한번에 선택하거나, 파일을 끌어다 놓거나(드래그), 복사한 이미지를 붙여넣기(Ctrl+V)해도 추가됩니다. 사진에 마우스를
+        올리면 나오는 ▲▼ 버튼으로 순서를 바꾸거나, 사진을 직접 끌어서 원하는 위치로 옮길 수 있어요.
       </p>
     </div>
   );

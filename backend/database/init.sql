@@ -38,13 +38,18 @@ CREATE TABLE IF NOT EXISTS products (
   tags           TEXT[] NOT NULL DEFAULT '{}',
   image_url      VARCHAR(500),
   detail_content TEXT NOT NULL DEFAULT '',
+  detail_images  TEXT[] NOT NULL DEFAULT '{}',
   is_weekly_best BOOLEAN NOT NULL DEFAULT false,
   is_new_arrival BOOLEAN NOT NULL DEFAULT false,
+  best_order     INTEGER CHECK (best_order IS NULL OR best_order BETWEEN 1 AND 6),
+  new_order      INTEGER CHECK (new_order IS NULL OR new_order BETWEEN 1 AND 6),
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
 CREATE INDEX IF NOT EXISTS idx_products_tags ON products USING GIN(tags);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_products_best_order_uniq ON products(best_order) WHERE best_order IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_products_new_order_uniq ON products(new_order) WHERE new_order IS NOT NULL;
 
 INSERT INTO products (id, name, price, original_price, badge, sold_label, category, tags) VALUES
   (1, '오버핏 울 코트', 89000, NULL, '추천', '누적 1,200장', 'OUTER', ARRAY['코트','울코트','오버핏']),

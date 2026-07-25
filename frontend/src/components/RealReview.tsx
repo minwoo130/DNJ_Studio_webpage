@@ -18,7 +18,7 @@ type Review = {
   productId?: number;
   productName?: string;
   productImageUrl?: string;
-  imageUrl?: string;
+  imageUrls?: string[];
   createdAt: string;
 };
 
@@ -54,8 +54,9 @@ export default function RealReview() {
   return (
     <div className="flex gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {reviews.map((r) => {
-        const photo = r.imageUrl
-          ? resolveImageUrl(r.imageUrl, r.productId ?? 0)
+        const reviewPhoto = r.imageUrls?.[0];
+        const photo = reviewPhoto
+          ? resolveImageUrl(reviewPhoto, r.productId ?? 0)
           : r.productId
             ? resolveImageUrl(r.productImageUrl, r.productId)
             : "/logo.png";
@@ -63,7 +64,7 @@ export default function RealReview() {
         return (
           <Link
             key={r.id}
-            href={r.productId ? `/products/${r.productId}` : `/community/review/${r.id}`}
+            href={`/community/review/${r.id}`}
             className="w-40 shrink-0 rounded-md border border-gray-100 transition-shadow hover:shadow-md sm:w-48"
           >
             <div className="relative aspect-square w-full overflow-hidden rounded-t-md bg-gray-100">

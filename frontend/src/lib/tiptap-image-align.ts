@@ -1,7 +1,12 @@
 import Image from "@tiptap/extension-image";
+import { ReactNodeViewRenderer } from "@tiptap/react";
+import TiptapImageNodeView from "@/components/TiptapImageNodeView";
 
 // 이미지 정렬(왼쪽/가운데/오른쪽): margin auto 트릭이라 이미지 폭이 컨테이너보다 좁을 때 위치 차이가 보임
 export const AlignableImage = Image.extend({
+  addNodeView() {
+    return ReactNodeViewRenderer(TiptapImageNodeView);
+  },
   addAttributes() {
     return {
       ...this.parent?.(),
