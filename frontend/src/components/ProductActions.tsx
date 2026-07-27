@@ -32,18 +32,22 @@ export default function ProductActions({ productId }: { productId: number }) {
     const headers = authHeader();
     if (!headers) return;
 
-    if (isWishlisted) {
-      await fetch(`${API_URL}/api/wishlist/${productId}`, { method: "DELETE", headers });
-      setIsWishlisted(false);
-      setMessage("위시리스트에서 제거했습니다.");
-    } else {
-      await fetch(`${API_URL}/api/wishlist`, {
-        method: "POST",
-        headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ productId }),
-      });
-      setIsWishlisted(true);
-      setMessage("위시리스트에 담았습니다.");
+    try {
+      if (isWishlisted) {
+        await fetch(`${API_URL}/api/wishlist/${productId}`, { method: "DELETE", headers });
+        setIsWishlisted(false);
+        setMessage("위시리스트에서 제거했습니다.");
+      } else {
+        await fetch(`${API_URL}/api/wishlist`, {
+          method: "POST",
+          headers: { ...headers, "Content-Type": "application/json" },
+          body: JSON.stringify({ productId }),
+        });
+        setIsWishlisted(true);
+        setMessage("위시리스트에 담았습니다.");
+      }
+    } catch {
+      setMessage("네트워크 오류가 발생했습니다.");
     }
   }
 
@@ -51,12 +55,16 @@ export default function ProductActions({ productId }: { productId: number }) {
     const headers = authHeader();
     if (!headers) return;
 
-    await fetch(`${API_URL}/api/cart`, {
-      method: "POST",
-      headers: { ...headers, "Content-Type": "application/json" },
-      body: JSON.stringify({ productId, quantity: 1 }),
-    });
-    setMessage("장바구니에 담았습니다.");
+    try {
+      await fetch(`${API_URL}/api/cart`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ productId, quantity: 1 }),
+      });
+      setMessage("장바구니에 담았습니다.");
+    } catch {
+      setMessage("네트워크 오류가 발생했습니다.");
+    }
   }
 
   return (

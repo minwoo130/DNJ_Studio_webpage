@@ -25,14 +25,18 @@ export default function WishlistDrawer({ open, onClose }: { open: boolean; onClo
       return;
     }
     setNeedsLogin(false);
-    const res = await fetch(`${API_URL}/api/wishlist`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) {
+    try {
+      const res = await fetch(`${API_URL}/api/wishlist`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        setItems([]);
+        return;
+      }
+      setItems(await res.json());
+    } catch {
       setItems([]);
-      return;
     }
-    setItems(await res.json());
   }, []);
 
   useEffect(() => {
@@ -49,10 +53,14 @@ export default function WishlistDrawer({ open, onClose }: { open: boolean; onClo
   async function removeItem(productId: number) {
     const token = sessionStorage.getItem("token");
     if (!token) return;
-    await fetch(`${API_URL}/api/wishlist/${productId}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    try {
+      await fetch(`${API_URL}/api/wishlist/${productId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch {
+      return;
+    }
     load();
   }
 

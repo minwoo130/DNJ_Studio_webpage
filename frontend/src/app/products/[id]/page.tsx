@@ -67,7 +67,7 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
 
       {product.detailImages && product.detailImages.length > 0 && (
         <section className="mx-auto max-w-screen-lg border-t border-gray-100 px-4 py-8">
-          <div className="mx-auto flex max-w-2xl flex-col">
+          <div className="mx-auto flex max-w-3xl flex-col gap-6">
             {product.detailImages.map((url, index) => (
               // eslint-disable-next-line @next/next/no-img-element
               <img key={url + index} src={resolveImageUrl(url, product.id)} alt={`${product.name} 상세 이미지 ${index + 1}`} className="block w-full" />

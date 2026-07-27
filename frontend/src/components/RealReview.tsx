@@ -29,10 +29,14 @@ export default function RealReview() {
     let cancelled = false;
 
     async function load() {
-      const res = await fetch(`${API_URL}/api/community/review?limit=10`);
-      if (!res.ok || cancelled) return;
-      const data = await res.json();
-      setReviews(data.posts);
+      try {
+        const res = await fetch(`${API_URL}/api/community/review?limit=10`);
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (!cancelled) setReviews(data.posts);
+      } catch {
+        if (!cancelled) setReviews((prev) => prev ?? []);
+      }
     }
 
     load();

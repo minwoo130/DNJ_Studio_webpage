@@ -9,8 +9,12 @@ export type NoticeItem = {
 };
 
 export async function fetchNotices(limit = 3): Promise<NoticeItem[]> {
-  const res = await fetch(`${API_BASE}/api/community/notice?limit=${limit}`, { cache: "no-store" });
-  if (!res.ok) return [];
-  const data = await res.json();
-  return data.posts ?? [];
+  try {
+    const res = await fetch(`${API_BASE}/api/community/notice?limit=${limit}`, { cache: "no-store" });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.posts ?? [];
+  } catch {
+    return [];
+  }
 }

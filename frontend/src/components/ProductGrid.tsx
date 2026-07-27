@@ -49,14 +49,18 @@ export default function ProductGrid({ products }: { products: Product[] }) {
     }
     setWishlisted(next);
 
-    await fetch(`${API_URL}/api/wishlist${isWishlisted ? `/${productId}` : ""}`, {
-      method: isWishlisted ? "DELETE" : "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        ...(isWishlisted ? {} : { "Content-Type": "application/json" }),
-      },
-      body: isWishlisted ? undefined : JSON.stringify({ productId }),
-    });
+    try {
+      await fetch(`${API_URL}/api/wishlist${isWishlisted ? `/${productId}` : ""}`, {
+        method: isWishlisted ? "DELETE" : "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          ...(isWishlisted ? {} : { "Content-Type": "application/json" }),
+        },
+        body: isWishlisted ? undefined : JSON.stringify({ productId }),
+      });
+    } catch {
+      setWishlisted(wishlisted);
+    }
   }
 
   return (

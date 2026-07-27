@@ -17,15 +17,23 @@ export async function fetchProducts(params?: {
   if (params?.limit) search.set("limit", String(params.limit));
   const query = search.toString();
 
-  const res = await fetch(`${API_BASE}/api/products${query ? `?${query}` : ""}`, {
-    cache: "no-store",
-  });
-  if (!res.ok) return [];
-  return res.json();
+  try {
+    const res = await fetch(`${API_BASE}/api/products${query ? `?${query}` : ""}`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
 }
 
 export async function fetchProduct(id: number): Promise<Product | null> {
-  const res = await fetch(`${API_BASE}/api/products/${id}`, { cache: "no-store" });
-  if (!res.ok) return null;
-  return res.json();
+  try {
+    const res = await fetch(`${API_BASE}/api/products/${id}`, { cache: "no-store" });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
 }

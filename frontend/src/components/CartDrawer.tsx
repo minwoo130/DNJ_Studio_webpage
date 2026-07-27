@@ -27,16 +27,20 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
       return;
     }
     setNeedsLogin(false);
-    const res = await fetch(`${API_URL}/api/cart`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) {
+    try {
+      const res = await fetch(`${API_URL}/api/cart`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        setItems([]);
+        return;
+      }
+      const data = await res.json();
+      setItems(data.items);
+      setTotal(data.total);
+    } catch {
       setItems([]);
-      return;
     }
-    const data = await res.json();
-    setItems(data.items);
-    setTotal(data.total);
   }, []);
 
   useEffect(() => {
@@ -54,21 +58,29 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
     if (quantity < 1) return;
     const token = sessionStorage.getItem("token");
     if (!token) return;
-    await fetch(`${API_URL}/api/cart/${productId}`, {
-      method: "PATCH",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ quantity }),
-    });
+    try {
+      await fetch(`${API_URL}/api/cart/${productId}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ quantity }),
+      });
+    } catch {
+      return;
+    }
     load();
   }
 
   async function removeItem(productId: number) {
     const token = sessionStorage.getItem("token");
     if (!token) return;
-    await fetch(`${API_URL}/api/cart/${productId}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    try {
+      await fetch(`${API_URL}/api/cart/${productId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch {
+      return;
+    }
     load();
   }
 
