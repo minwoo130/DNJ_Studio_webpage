@@ -4,12 +4,22 @@ import { requireAuth, type AuthedRequest } from "../middleware/auth";
 
 const router = Router();
 
+// 로그인 없이도 계좌 안내를 볼 수 있어야 하므로 requireAuth보다 앞에 둔다.
+router.get("/bank-info", (_req, res) => {
+  res.json({
+    bankName: process.env.BANK_NAME ?? "",
+    accountNumber: process.env.BANK_ACCOUNT_NUMBER ?? "",
+    accountHolder: process.env.BANK_ACCOUNT_HOLDER ?? "",
+  });
+});
+
 router.use(requireAuth);
 
 router.get("/", async (req: AuthedRequest, res) => {
   const orders = await pool.query(
     `SELECT id, status, total_amount, recipient_name, recipient_phone, zip_code, address,
-            address_detail, memo, is_shipped, created_at
+            address_detail, memo, is_shipped, created_at,
+            payment_method, payment_status, depositor_name, deposit_deadline, paid_at
      FROM orders WHERE user_id = $1 ORDER BY id DESC`,
     [req.userId]
   );
@@ -35,6 +45,11 @@ router.get("/", async (req: AuthedRequest, res) => {
       memo: o.memo ?? undefined,
       isShipped: o.is_shipped,
       createdAt: o.created_at,
+      paymentMethod: o.payment_method,
+      paymentStatus: o.payment_status,
+      depositorName: o.depositor_name ?? undefined,
+      depositDeadline: o.deposit_deadline ?? undefined,
+      paidAt: o.paid_at ?? undefined,
       items: items.rows
         .filter((i) => i.order_id === o.id)
         .map((i) => ({
@@ -59,8 +74,56 @@ router.get("/purchased/:productId", async (req: AuthedRequest, res) => {
   res.json({ purchased: result.rows.length > 0 });
 });
 
+router.get("/:id", async (req: AuthedRequest, res) => {
+  const orderResult = await pool.query(
+    `SELECT id, status, total_amount, recipient_name, recipient_phone, zip_code, address,
+            address_detail, memo, is_shipped, created_at,
+            payment_method, payment_status, depositor_name, deposit_deadline, paid_at
+     FROM orders WHERE id = $1 AND user_id = $2`,
+    [req.params.id, req.userId]
+  );
+  const o = orderResult.rows[0];
+  if (!o) {
+    return res.status(404).json({ error: "주문을 찾을 수 없습니다." });
+  }
+
+  const items = await pool.query(
+    `SELECT oi.product_id, oi.quantity, oi.price, p.name, p.image_url
+     FROM order_items oi
+     JOIN products p ON p.id = oi.product_id
+     WHERE oi.order_id = $1`,
+    [o.id]
+  );
+
+  res.json({
+    id: o.id,
+    status: o.status,
+    totalAmount: o.total_amount,
+    recipientName: o.recipient_name,
+    recipientPhone: o.recipient_phone,
+    zipCode: o.zip_code ?? undefined,
+    address: o.address,
+    addressDetail: o.address_detail ?? undefined,
+    memo: o.memo ?? undefined,
+    isShipped: o.is_shipped,
+    createdAt: o.created_at,
+    paymentMethod: o.payment_method,
+    paymentStatus: o.payment_status,
+    depositorName: o.depositor_name ?? undefined,
+    depositDeadline: o.deposit_deadline ?? undefined,
+    paidAt: o.paid_at ?? undefined,
+    items: items.rows.map((i) => ({
+      productId: i.product_id,
+      name: i.name,
+      quantity: i.quantity,
+      price: i.price,
+      imageUrl: i.image_url ?? `/products/${i.product_id}.jpg`,
+    })),
+  });
+});
+
 router.post("/", async (req: AuthedRequest, res) => {
-  const { recipientName, recipientPhone, zipCode, address, addressDetail, memo } = req.body ?? {};
+  const { recipientName, recipientPhone, zipCode, address, addressDetail, memo, depositorName } = req.body ?? {};
   if (!recipientName?.trim() || !recipientPhone?.trim() || !address?.trim()) {
     return res.status(400).json({ error: "수령인/연락처/주소는 필수입니다." });
   }
@@ -86,9 +149,11 @@ router.post("/", async (req: AuthedRequest, res) => {
 
     const order = await client.query(
       `INSERT INTO orders
-        (user_id, status, total_amount, recipient_name, recipient_phone, zip_code, address, address_detail, memo)
-       VALUES ($1, 'placed', $2, $3, $4, $5, $6, $7, $8)
-       RETURNING id`,
+        (user_id, status, total_amount, recipient_name, recipient_phone, zip_code, address, address_detail, memo,
+         payment_method, payment_status, depositor_name, deposit_deadline)
+       VALUES ($1, 'placed', $2, $3, $4, $5, $6, $7, $8,
+               'BANK_TRANSFER', 'WAITING', $9, now() + interval '3 days')
+       RETURNING id, deposit_deadline`,
       [
         req.userId,
         total,
@@ -98,6 +163,7 @@ router.post("/", async (req: AuthedRequest, res) => {
         address.trim(),
         addressDetail?.trim() || null,
         memo?.trim() || null,
+        depositorName?.trim() || recipientName.trim(),
       ]
     );
     const orderId = order.rows[0].id;
@@ -112,7 +178,7 @@ router.post("/", async (req: AuthedRequest, res) => {
     await client.query("DELETE FROM cart_items WHERE user_id = $1", [req.userId]);
     await client.query("COMMIT");
 
-    res.status(201).json({ id: orderId });
+    res.status(201).json({ id: orderId, depositDeadline: order.rows[0].deposit_deadline });
   } catch (err) {
     await client.query("ROLLBACK");
     throw err;

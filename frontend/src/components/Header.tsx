@@ -7,6 +7,7 @@ import { getCategorySubTags, type ProductCategory } from "@/data/products";
 import CartDrawer from "@/components/CartDrawer";
 import WishlistDrawer from "@/components/WishlistDrawer";
 import SearchOverlay from "@/components/SearchOverlay";
+import NotificationBell from "@/components/NotificationBell";
 
 type NavItem =
   | { type: "link"; label: string; href: string }
@@ -206,6 +207,7 @@ export default function Header({ overlay = false }: { overlay?: boolean }) {
                     <path d="M12 20s-7-4.35-9.5-8.8C.8 7.6 2.3 4 6 4c2 0 3.5 1 4 2.5C10.5 5 12 4 14 4c3.7 0 5.2 3.6 3.5 7.2C19 15.65 12 20 12 20z" />
                   </svg>
                 </button>
+                <NotificationBell />
                 <button onClick={() => setCartOpen(true)} aria-label="장바구니" className="relative">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-[18px] w-[18px]">
                     <path d="M6 8h12l-1 12H7L6 8z" strokeLinejoin="round" />

@@ -50,6 +50,7 @@ router.get("/orders", requireAuth, requireAdmin, async (_req, res) => {
     `SELECT o.id, o.status, o.total_amount, o.recipient_name, o.recipient_phone, o.zip_code,
             o.address, o.address_detail, o.memo, o.is_shipped, o.shipped_at, o.created_at,
             o.guest_name, o.guest_phone, o.guest_email,
+            o.payment_method, o.payment_status, o.depositor_name, o.deposit_deadline, o.paid_at,
             u.name AS member_name, u.email AS member_email, u.phone AS member_phone
      FROM orders o
      LEFT JOIN users u ON u.id = o.user_id
@@ -78,6 +79,11 @@ router.get("/orders", requireAuth, requireAdmin, async (_req, res) => {
       isShipped: o.is_shipped,
       shippedAt: o.shipped_at ?? undefined,
       createdAt: o.created_at,
+      paymentMethod: o.payment_method,
+      paymentStatus: o.payment_status,
+      depositorName: o.depositor_name ?? undefined,
+      depositDeadline: o.deposit_deadline ?? undefined,
+      paidAt: o.paid_at ?? undefined,
       member: o.member_email
         ? { name: o.member_name, email: o.member_email, phone: o.member_phone ?? undefined }
         : o.guest_name
@@ -103,6 +109,70 @@ router.patch("/orders/:id/ship", requireAuth, requireAdmin, async (req, res) => 
     return res.status(404).json({ error: "주문을 찾을 수 없습니다." });
   }
   res.json({ ok: true });
+});
+
+router.patch("/orders/:id/confirm-payment", requireAuth, requireAdmin, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await client.query(
+      `UPDATE orders
+       SET payment_status = 'PAID', paid_at = now(), status = 'preparing'
+       WHERE id = $1 AND payment_status = 'WAITING'
+       RETURNING id, user_id`,
+      [req.params.id]
+    );
+    if (result.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "입금 대기 중인 주문을 찾을 수 없습니다." });
+    }
+    const { id, user_id } = result.rows[0];
+    if (user_id) {
+      await client.query(
+        `INSERT INTO notifications (user_id, order_id, message) VALUES ($1, $2, $3)`,
+        [user_id, id, `주문 #${id} 입금이 확인되어 상품 준비중입니다.`]
+      );
+    }
+    await client.query("COMMIT");
+    res.json({ ok: true });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+});
+
+router.patch("/orders/:id/cancel", requireAuth, requireAdmin, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await client.query(
+      `UPDATE orders
+       SET payment_status = 'CANCELLED', status = 'cancelled'
+       WHERE id = $1 AND payment_status != 'CANCELLED'
+       RETURNING id, user_id`,
+      [req.params.id]
+    );
+    if (result.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "주문을 찾을 수 없거나 이미 취소되었습니다." });
+    }
+    const { id, user_id } = result.rows[0];
+    if (user_id) {
+      await client.query(
+        `INSERT INTO notifications (user_id, order_id, message) VALUES ($1, $2, $3)`,
+        [user_id, id, `주문 #${id}이(가) 취소되었습니다.`]
+      );
+    }
+    await client.query("COMMIT");
+    res.json({ ok: true });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
 });
 
 router.use(requireAdminKey);

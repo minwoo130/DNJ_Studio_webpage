@@ -6,6 +6,7 @@ import Link from "next/link";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { resolveImageUrl } from "@/lib/image";
+import { PAYMENT_STATUS_LABEL, ORDER_STATUS_LABEL, paymentStatusBadgeClass } from "@/lib/orderStatus";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
@@ -57,6 +58,11 @@ type Order = {
   status: string;
   totalAmount: number;
   createdAt: string;
+  paymentMethod: string;
+  paymentStatus: string;
+  depositorName?: string;
+  depositDeadline?: string;
+  paidAt?: string;
   items: {
     productId: number;
     name: string;
@@ -389,6 +395,16 @@ export default function MyPage() {
                   <div className="flex items-center justify-between text-xs text-gray-400">
                     <span>{new Date(order.createdAt).toLocaleDateString("ko-KR")} 주문</span>
                     <span>{order.totalAmount.toLocaleString()}원</span>
+                  </div>
+                  <div className="mt-1 flex gap-1.5">
+                    <span
+                      className={`rounded px-2 py-0.5 text-[11px] font-bold ${paymentStatusBadgeClass(order.paymentStatus)}`}
+                    >
+                      {PAYMENT_STATUS_LABEL[order.paymentStatus] ?? order.paymentStatus}
+                    </span>
+                    <span className="rounded bg-gray-50 px-2 py-0.5 text-[11px] font-bold text-gray-500">
+                      {ORDER_STATUS_LABEL[order.status] ?? order.status}
+                    </span>
                   </div>
                   <div className="mt-2 space-y-2">
                     {order.items.map((item) => (

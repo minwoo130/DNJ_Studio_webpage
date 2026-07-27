@@ -39,6 +39,7 @@ export default function CheckoutPage() {
   const [address, setAddress] = useState("");
   const [addressDetail, setAddressDetail] = useState("");
   const [memo, setMemo] = useState("");
+  const [depositorName, setDepositorName] = useState("");
   const [agreeOrder, setAgreeOrder] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -63,6 +64,7 @@ export default function CheckoutPage() {
       setMe(meData);
       setRecipientName(meData.user.name ?? "");
       setRecipientPhone(meData.user.phone ?? "");
+      setDepositorName(meData.user.name ?? "");
       if (meData.user.address) {
         setZipCode(meData.user.zip_code ?? "");
         setAddress(meData.user.address ?? "");
@@ -99,6 +101,10 @@ export default function CheckoutPage() {
       setError("수령인, 연락처, 주소는 필수입니다.");
       return;
     }
+    if (!depositorName.trim()) {
+      setError("입금자명을 입력해주세요.");
+      return;
+    }
 
     const headers = authHeader();
     if (!headers) return;
@@ -114,16 +120,17 @@ export default function CheckoutPage() {
         address,
         addressDetail: addressDetail || undefined,
         memo: memo || undefined,
+        depositorName,
       }),
     });
+    const data = await res.json();
     setSubmitting(false);
 
     if (!res.ok) {
-      const data = await res.json();
       setError(data.error ?? "주문에 실패했습니다.");
       return;
     }
-    router.push("/mypage#orders");
+    router.push(`/orders/${data.id}/complete`);
   }
 
   if (!cart || !me) {
@@ -249,6 +256,23 @@ export default function CheckoutPage() {
             onChange={(e) => setMemo(e.target.value)}
             className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-black"
           />
+
+          <h2 className="pt-4 text-sm font-bold">결제수단</h2>
+          <div className="space-y-2 rounded-md border border-gray-100 p-3 text-sm">
+            <label className="flex items-center gap-2">
+              <input type="radio" checked readOnly name="paymentMethod" value="BANK_TRANSFER" />
+              무통장입금
+            </label>
+          </div>
+          <input
+            type="text"
+            required
+            placeholder="입금자명"
+            value={depositorName}
+            onChange={(e) => setDepositorName(e.target.value)}
+            className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-black"
+          />
+          <p className="text-xs text-brand-red">반드시 주문자명과 동일하게 입금해주세요.</p>
 
           <label className="flex items-start gap-2 text-xs text-gray-600">
             <input

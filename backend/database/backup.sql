@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict K2F11LdzgfkmHMg1SbIBOl0EaMPWQJ7XBCQlkulhe6AUbVL9su7SHKjGtfSnH8v
+\restrict 1fP8eebYEWmyYXK47g68RN3bJWIpjc6FlEcH9qRkpP6aDYv4DM7kLWvhNnHUWV4
 
 -- Dumped from database version 16.14
 -- Dumped by pg_dump version 16.14
@@ -133,6 +133,40 @@ ALTER SEQUENCE public.community_posts_id_seq OWNED BY public.community_posts.id;
 
 
 --
+-- Name: notifications; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.notifications (
+    id integer NOT NULL,
+    user_id integer NOT NULL,
+    order_id integer,
+    message text NOT NULL,
+    is_read boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: notifications_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.notifications_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: notifications_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.notifications_id_seq OWNED BY public.notifications.id;
+
+
+--
 -- Name: order_items; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -185,7 +219,12 @@ CREATE TABLE public.orders (
     memo character varying(255),
     is_shipped boolean DEFAULT false NOT NULL,
     shipped_at timestamp with time zone,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    payment_method character varying(20) DEFAULT 'BANK_TRANSFER'::character varying NOT NULL,
+    payment_status character varying(20) DEFAULT 'WAITING'::character varying NOT NULL,
+    depositor_name character varying(100),
+    deposit_deadline timestamp with time zone,
+    paid_at timestamp with time zone
 );
 
 
@@ -386,6 +425,13 @@ ALTER TABLE ONLY public.community_posts ALTER COLUMN id SET DEFAULT nextval('pub
 
 
 --
+-- Name: notifications id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications ALTER COLUMN id SET DEFAULT nextval('public.notifications_id_seq'::regclass);
+
+
+--
 -- Name: order_items id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -454,6 +500,14 @@ COPY public.community_posts (id, board_type, user_id, title, content, is_private
 
 
 --
+-- Data for Name: notifications; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.notifications (id, user_id, order_id, message, is_read, created_at) FROM stdin;
+\.
+
+
+--
 -- Data for Name: order_items; Type: TABLE DATA; Schema: public; Owner: -
 --
 
@@ -465,7 +519,7 @@ COPY public.order_items (id, order_id, product_id, quantity, price) FROM stdin;
 -- Data for Name: orders; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public.orders (id, user_id, guest_name, guest_phone, guest_email, status, total_amount, recipient_name, recipient_phone, zip_code, address, address_detail, memo, is_shipped, shipped_at, created_at) FROM stdin;
+COPY public.orders (id, user_id, guest_name, guest_phone, guest_email, status, total_amount, recipient_name, recipient_phone, zip_code, address, address_detail, memo, is_shipped, shipped_at, created_at, payment_method, payment_status, depositor_name, deposit_deadline, paid_at) FROM stdin;
 \.
 
 
@@ -513,7 +567,7 @@ COPY public.wishlist_items (id, user_id, product_id, created_at) FROM stdin;
 -- Name: cart_items_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.cart_items_id_seq', 1, false);
+SELECT pg_catalog.setval('public.cart_items_id_seq', 3, true);
 
 
 --
@@ -531,17 +585,24 @@ SELECT pg_catalog.setval('public.community_posts_id_seq', 5, true);
 
 
 --
+-- Name: notifications_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.notifications_id_seq', 3, true);
+
+
+--
 -- Name: order_items_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.order_items_id_seq', 1, false);
+SELECT pg_catalog.setval('public.order_items_id_seq', 3, true);
 
 
 --
 -- Name: orders_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.orders_id_seq', 1, false);
+SELECT pg_catalog.setval('public.orders_id_seq', 3, true);
 
 
 --
@@ -602,6 +663,14 @@ ALTER TABLE ONLY public.community_comments
 
 ALTER TABLE ONLY public.community_posts
     ADD CONSTRAINT community_posts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: notifications notifications_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_pkey PRIMARY KEY (id);
 
 
 --
@@ -701,6 +770,13 @@ CREATE INDEX idx_community_posts_product_id ON public.community_posts USING btre
 --
 
 CREATE INDEX idx_community_posts_user_id ON public.community_posts USING btree (user_id);
+
+
+--
+-- Name: idx_notifications_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_notifications_user_id ON public.notifications USING btree (user_id, id DESC);
 
 
 --
@@ -815,6 +891,22 @@ ALTER TABLE ONLY public.community_posts
 
 
 --
+-- Name: notifications notifications_order_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_order_id_fkey FOREIGN KEY (order_id) REFERENCES public.orders(id) ON DELETE SET NULL;
+
+
+--
+-- Name: notifications notifications_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
 -- Name: order_items order_items_order_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -866,5 +958,5 @@ ALTER TABLE ONLY public.wishlist_items
 -- PostgreSQL database dump complete
 --
 
-\unrestrict K2F11LdzgfkmHMg1SbIBOl0EaMPWQJ7XBCQlkulhe6AUbVL9su7SHKjGtfSnH8v
+\unrestrict 1fP8eebYEWmyYXK47g68RN3bJWIpjc6FlEcH9qRkpP6aDYv4DM7kLWvhNnHUWV4
 

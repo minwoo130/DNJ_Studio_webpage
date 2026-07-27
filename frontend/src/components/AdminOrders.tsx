@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { PAYMENT_STATUS_LABEL, paymentStatusBadgeClass } from "@/lib/orderStatus";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
@@ -16,6 +17,10 @@ type Order = {
   memo?: string;
   isShipped: boolean;
   createdAt: string;
+  paymentMethod: string;
+  paymentStatus: string;
+  depositorName?: string;
+  paidAt?: string;
   member?: { name: string; email?: string; phone?: string; guest?: boolean };
   items: { productId: number; name: string; quantity: number; price: number }[];
 };
@@ -47,6 +52,23 @@ export default function AdminOrders() {
     load();
   }
 
+  async function confirmPayment(order: Order) {
+    await fetch(`${API_URL}/api/admin/orders/${order.id}/confirm-payment`, {
+      method: "PATCH",
+      headers: authHeader(),
+    });
+    load();
+  }
+
+  async function cancelOrder(order: Order) {
+    if (!confirm("정말 이 주문을 취소하시겠습니까?")) return;
+    await fetch(`${API_URL}/api/admin/orders/${order.id}/cancel`, {
+      method: "PATCH",
+      headers: authHeader(),
+    });
+    load();
+  }
+
   return (
     <div className="py-6">
       {orders === null && <p className="py-10 text-center text-sm text-gray-400">불러오는 중...</p>}
@@ -61,14 +83,40 @@ export default function AdminOrders() {
               <span>
                 주문번호 #{order.id} · {new Date(order.createdAt).toLocaleString("ko-KR")}
               </span>
-              <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700">
-                <input
-                  type="checkbox"
-                  checked={order.isShipped}
-                  onChange={() => toggleShipped(order)}
-                />
-                택배배송 완료
-              </label>
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={`rounded px-2 py-0.5 text-[11px] font-bold ${paymentStatusBadgeClass(order.paymentStatus)}`}
+                >
+                  {PAYMENT_STATUS_LABEL[order.paymentStatus] ?? order.paymentStatus}
+                  {order.depositorName ? ` · ${order.depositorName}` : ""}
+                </span>
+                {order.paymentStatus === "WAITING" && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => confirmPayment(order)}
+                      className="rounded bg-black px-2 py-1 text-[11px] font-bold text-white"
+                    >
+                      입금확인
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => cancelOrder(order)}
+                      className="rounded border border-gray-300 px-2 py-1 text-[11px] font-bold text-gray-600"
+                    >
+                      주문취소
+                    </button>
+                  </>
+                )}
+                <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={order.isShipped}
+                    onChange={() => toggleShipped(order)}
+                  />
+                  택배배송 완료
+                </label>
+              </div>
             </div>
 
             <div className="mt-2 grid grid-cols-1 gap-3 rounded-md border border-gray-100 p-3 text-sm sm:grid-cols-2">

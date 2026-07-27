@@ -105,6 +105,17 @@ CREATE TABLE IF NOT EXISTS orders (
 
 CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
 
+-- 무통장입금 결제 필드 (기존 backup.sql 복원 시에도 안전하게 재실행 가능하도록 ALTER로 작성)
+-- orders.status: placed(기본, 주문접수) -> preparing(입금확인 후 상품준비중) -> cancelled(주문취소)
+-- orders.payment_method: BANK_TRANSFER(구현됨) / 예약: TOSS_PAY, KAKAO_PAY, CARD
+-- orders.payment_status: WAITING(기본, 입금대기) -> PAID(입금완료) / CANCELLED(취소)
+ALTER TABLE orders
+  ADD COLUMN IF NOT EXISTS payment_method   VARCHAR(20)  NOT NULL DEFAULT 'BANK_TRANSFER',
+  ADD COLUMN IF NOT EXISTS payment_status   VARCHAR(20)  NOT NULL DEFAULT 'WAITING',
+  ADD COLUMN IF NOT EXISTS depositor_name   VARCHAR(100),
+  ADD COLUMN IF NOT EXISTS deposit_deadline TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS paid_at          TIMESTAMPTZ;
+
 CREATE TABLE IF NOT EXISTS order_items (
   id          SERIAL PRIMARY KEY,
   order_id    INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
@@ -115,6 +126,17 @@ CREATE TABLE IF NOT EXISTS order_items (
 
 CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
 CREATE INDEX IF NOT EXISTS idx_order_items_product_id ON order_items(product_id);
+
+CREATE TABLE IF NOT EXISTS notifications (
+  id          SERIAL PRIMARY KEY,
+  user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  order_id    INTEGER REFERENCES orders(id) ON DELETE SET NULL,
+  message     TEXT NOT NULL,
+  is_read     BOOLEAN NOT NULL DEFAULT false,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id, id DESC);
 
 CREATE TABLE IF NOT EXISTS community_posts (
   id          SERIAL PRIMARY KEY,

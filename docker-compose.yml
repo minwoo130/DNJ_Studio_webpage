@@ -28,6 +28,9 @@ services:
       - DATABASE_URL=${DATABASE_URL}
       - JWT_SECRET=${JWT_SECRET}
       - ADMIN_API_KEY=${ADMIN_API_KEY}
+      - BANK_NAME=${BANK_NAME}
+      - BANK_ACCOUNT_NUMBER=${BANK_ACCOUNT_NUMBER}
+      - BANK_ACCOUNT_HOLDER=${BANK_ACCOUNT_HOLDER}
     depends_on:
       - db
 
