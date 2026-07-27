@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 1fP8eebYEWmyYXK47g68RN3bJWIpjc6FlEcH9qRkpP6aDYv4DM7kLWvhNnHUWV4
+\restrict G3l9HxVi0mRhJMFhM4gatfoirIg6ojDtYIDFF0saEO5eZvPfyzmNlMLLO19ErQY
 
 -- Dumped from database version 16.14
 -- Dumped by pg_dump version 16.14
@@ -478,6 +478,7 @@ ALTER TABLE ONLY public.wishlist_items ALTER COLUMN id SET DEFAULT nextval('publ
 --
 
 COPY public.cart_items (id, user_id, product_id, quantity, created_at) FROM stdin;
+4	1	7	1	2026-07-27 08:11:29.945657+00
 \.
 
 
@@ -528,11 +529,11 @@ COPY public.orders (id, user_id, guest_name, guest_phone, guest_email, status, t
 --
 
 COPY public.products (id, name, price, original_price, badge, sold_label, category, tags, image_url, detail_content, is_weekly_best, is_new_arrival, created_at, detail_images, best_order, new_order) FROM stdin;
-17	워싱 데님 반팔 셔츠	36800	49000	추천	\N	TOP	{반팔,셔츠,당일출발}	/uploads/products/1785135391802-75deadbb4f73.jpg		t	t	2026-07-27 07:02:50.930596+00	{/uploads/products/1785135409248-7f1224fcd7b8.png,/uploads/products/1785135435562-efe3b1ebf365.png,/uploads/products/1785135447975-cfb05ef2aab6.jpg,/uploads/products/1785135473538-6525773ff031.jpg,/uploads/products/1785135475990-3a415cd773c5.jpg,/uploads/products/1785135506104-fbd16d295b6a.jpg,/uploads/products/1785135633021-d33caac16638.jpg,/uploads/products/1785135636449-e1526cbc77b5.jpg,/uploads/products/1785135669848-9ab02d29f64d.jpg,/uploads/products/1785135677627-38afd318c784.jpg,/uploads/products/1785135680153-0c72bfbee217.jpg,/uploads/products/1785135684778-378d0365095c.jpg,/uploads/products/1785135687795-47c4e6056dd6.jpg,/uploads/products/1785135694945-a981d93bf146.jpg,/uploads/products/1785135701814-b63e89e67613.jpg,/uploads/products/1785135706072-4000f94dc899.png,/uploads/products/1785135709145-3c4af0dfda6f.png,/uploads/products/1785135749793-55073eb928c9.png}	2	2
 12	321312	3213	312231	\N	\N	TOP	{}	/uploads/products/1784956344233-dc07d2da4df3.png		t	t	2026-07-25 05:12:31.134952+00	{}	\N	\N
 13	3213	3213	321321	\N	\N	TOP	{}	/uploads/products/1784956369897-18870ddcf871.png		t	t	2026-07-25 05:12:52.044584+00	{}	\N	\N
 14	3123	3123	3213	\N	\N	TOP	{가디건}	/uploads/products/1784956389721-d4a2fd4cba30.png		t	t	2026-07-25 05:13:13.001505+00	{}	\N	\N
 15	312	312	3213	\N	\N	TOP	{}	/uploads/products/1784956398593-9ad95634521a.png		t	f	2026-07-25 05:13:19.632291+00	{}	\N	\N
+17	워싱 데님 반팔 셔츠	36800	49000	추천	\N	TOP	{반팔,셔츠,당일출발}	/uploads/products/1785139912439-cd4723eeecbf.jpg		t	t	2026-07-27 07:02:50.930596+00	{/uploads/products/1785135409248-7f1224fcd7b8.png,/uploads/products/1785135435562-efe3b1ebf365.png,/uploads/products/1785135447975-cfb05ef2aab6.jpg,/uploads/products/1785135473538-6525773ff031.jpg,/uploads/products/1785135475990-3a415cd773c5.jpg,/uploads/products/1785135506104-fbd16d295b6a.jpg,/uploads/products/1785139889032-0c5dee2b329b.jpg,/uploads/products/1785135633021-d33caac16638.jpg,/uploads/products/1785135636449-e1526cbc77b5.jpg,/uploads/products/1785135669848-9ab02d29f64d.jpg,/uploads/products/1785135677627-38afd318c784.jpg,/uploads/products/1785135680153-0c72bfbee217.jpg,/uploads/products/1785135684778-378d0365095c.jpg,/uploads/products/1785135687795-47c4e6056dd6.jpg,/uploads/products/1785135694945-a981d93bf146.jpg,/uploads/products/1785135701814-b63e89e67613.jpg,/uploads/products/1785139908652-f457df925cb1.png,/uploads/products/1785139895173-73a3dbbd1cd8.png,/uploads/products/1785139906014-3a33f9c58930.png,/uploads/products/1785139943625-c014392a3743.jpg,/uploads/products/1785135709145-3c4af0dfda6f.png,/uploads/products/1785135749793-55073eb928c9.png}	2	2
 11	3123	123	3123	\N	\N	TOP	{반팔,312}	/uploads/products/1784956327829-4acb59841988.png		t	t	2026-07-25 05:12:09.634222+00	{}	\N	\N
 7	좆되는옷	19800	25000	추천	\N	TOP	{셔츠}	/uploads/products/1784949754512-46cd9f64d488.jpg	<p></p>	t	t	2026-07-25 02:40:57.660075+00	{/uploads/products/1784950002373-eaba42d555cb.png,/uploads/products/1784950005319-ef1bcb1ac156.png,/uploads/products/1784950007119-ce064736206e.png,/uploads/products/1784950010004-cd4e0918af2a.png,/uploads/products/1784950012008-21228d179aa6.png,/uploads/products/1784950014791-2a3a8ca04d33.png,/uploads/products/1784950016639-70b5e27f28d1.png,/uploads/products/1784950018207-da05faf15ebf.png}	1	1
 \.
@@ -567,7 +568,7 @@ COPY public.wishlist_items (id, user_id, product_id, created_at) FROM stdin;
 -- Name: cart_items_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.cart_items_id_seq', 3, true);
+SELECT pg_catalog.setval('public.cart_items_id_seq', 4, true);
 
 
 --
@@ -595,14 +596,14 @@ SELECT pg_catalog.setval('public.notifications_id_seq', 3, true);
 -- Name: order_items_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.order_items_id_seq', 3, true);
+SELECT pg_catalog.setval('public.order_items_id_seq', 4, true);
 
 
 --
 -- Name: orders_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.orders_id_seq', 3, true);
+SELECT pg_catalog.setval('public.orders_id_seq', 4, true);
 
 
 --
@@ -958,5 +959,5 @@ ALTER TABLE ONLY public.wishlist_items
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 1fP8eebYEWmyYXK47g68RN3bJWIpjc6FlEcH9qRkpP6aDYv4DM7kLWvhNnHUWV4
+\unrestrict G3l9HxVi0mRhJMFhM4gatfoirIg6ojDtYIDFF0saEO5eZvPfyzmNlMLLO19ErQY
 

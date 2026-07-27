@@ -123,7 +123,8 @@ router.get("/:id", async (req: AuthedRequest, res) => {
 });
 
 router.post("/", async (req: AuthedRequest, res) => {
-  const { recipientName, recipientPhone, zipCode, address, addressDetail, memo, depositorName } = req.body ?? {};
+  const { recipientName, recipientPhone, zipCode, address, addressDetail, memo, depositorName, items } =
+    req.body ?? {};
   if (!recipientName?.trim() || !recipientPhone?.trim() || !address?.trim()) {
     return res.status(400).json({ error: "수령인/연락처/주소는 필수입니다." });
   }
@@ -132,20 +133,42 @@ router.post("/", async (req: AuthedRequest, res) => {
   try {
     await client.query("BEGIN");
 
-    const cart = await client.query(
-      `SELECT c.product_id, c.quantity, p.price
-       FROM cart_items c
-       JOIN products p ON p.id = c.product_id
-       WHERE c.user_id = $1`,
-      [req.userId]
-    );
+    // "바로구매": 장바구니를 거치지 않고 요청받은 상품만으로 바로 주문을 생성한다 (장바구니는 건드리지 않음).
+    const isBuyNow = Array.isArray(items) && items.length > 0;
 
-    if (cart.rows.length === 0) {
-      await client.query("ROLLBACK");
-      return res.status(400).json({ error: "장바구니가 비어 있습니다." });
+    let orderItems: { product_id: number; quantity: number; price: number }[];
+    if (isBuyNow) {
+      const productIds = items.map((i: { productId: number }) => Number(i.productId));
+      const productResult = await client.query(`SELECT id, price FROM products WHERE id = ANY($1::int[])`, [
+        productIds,
+      ]);
+      const priceById = new Map(productResult.rows.map((p) => [p.id, p.price]));
+      if (priceById.size !== new Set(productIds).size) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({ error: "상품을 찾을 수 없습니다." });
+      }
+      orderItems = items.map((i: { productId: number; quantity: number }) => ({
+        product_id: Number(i.productId),
+        quantity: Math.max(1, Number(i.quantity) || 1),
+        price: priceById.get(Number(i.productId))!,
+      }));
+    } else {
+      const cart = await client.query(
+        `SELECT c.product_id, c.quantity, p.price
+         FROM cart_items c
+         JOIN products p ON p.id = c.product_id
+         WHERE c.user_id = $1`,
+        [req.userId]
+      );
+
+      if (cart.rows.length === 0) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({ error: "장바구니가 비어 있습니다." });
+      }
+      orderItems = cart.rows;
     }
 
-    const total = cart.rows.reduce((sum, row) => sum + row.price * row.quantity, 0);
+    const total = orderItems.reduce((sum, row) => sum + row.price * row.quantity, 0);
 
     const order = await client.query(
       `INSERT INTO orders
@@ -168,14 +191,16 @@ router.post("/", async (req: AuthedRequest, res) => {
     );
     const orderId = order.rows[0].id;
 
-    for (const row of cart.rows) {
+    for (const row of orderItems) {
       await client.query(
         `INSERT INTO order_items (order_id, product_id, quantity, price) VALUES ($1, $2, $3, $4)`,
         [orderId, row.product_id, row.quantity, row.price]
       );
     }
 
-    await client.query("DELETE FROM cart_items WHERE user_id = $1", [req.userId]);
+    if (!isBuyNow) {
+      await client.query("DELETE FROM cart_items WHERE user_id = $1", [req.userId]);
+    }
     await client.query("COMMIT");
 
     res.status(201).json({ id: orderId, depositDeadline: order.rows[0].deposit_deadline });

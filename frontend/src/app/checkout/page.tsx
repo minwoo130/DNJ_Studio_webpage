@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -28,9 +28,22 @@ type Me = {
 };
 
 export default function CheckoutPage() {
+  return (
+    <Suspense fallback={null}>
+      <CheckoutForm />
+    </Suspense>
+  );
+}
+
+function CheckoutForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const buyProductId = searchParams.get("buyProductId");
+  const buyQuantity = Math.max(1, Number(searchParams.get("buyQuantity")) || 1);
+
   const [cart, setCart] = useState<{ items: CartItem[]; total: number } | null>(null);
   const [me, setMe] = useState<Me | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [addressMode, setAddressMode] = useState<"default" | "manual">("default");
 
   const [recipientName, setRecipientName] = useState("");
@@ -56,23 +69,41 @@ export default function CheckoutPage() {
       return;
     }
 
-    Promise.all([
-      fetch(`${API_URL}/api/cart`, { headers }).then((res) => res.json()),
-      fetch(`${API_URL}/api/auth/me`, { headers }).then((res) => res.json()),
-    ]).then(([cartData, meData]: [typeof cart, Me]) => {
-      setCart(cartData);
-      setMe(meData);
-      setRecipientName(meData.user.name ?? "");
-      setRecipientPhone(meData.user.phone ?? "");
-      setDepositorName(meData.user.name ?? "");
-      if (meData.user.address) {
-        setZipCode(meData.user.zip_code ?? "");
-        setAddress(meData.user.address ?? "");
-        setAddressDetail(meData.user.address_detail ?? "");
-      } else {
-        setAddressMode("manual");
-      }
-    });
+    const cartPromise = buyProductId
+      ? fetch(`${API_URL}/api/products/${buyProductId}`).then(async (res) => {
+          if (!res.ok) throw new Error("상품을 찾을 수 없습니다.");
+          const p = await res.json();
+          return {
+            items: [
+              {
+                productId: p.id,
+                name: p.name,
+                price: p.price,
+                quantity: buyQuantity,
+                imageUrl: p.imageUrl,
+              },
+            ],
+            total: p.price * buyQuantity,
+          };
+        })
+      : fetch(`${API_URL}/api/cart`, { headers }).then((res) => res.json());
+
+    Promise.all([cartPromise, fetch(`${API_URL}/api/auth/me`, { headers }).then((res) => res.json())])
+      .then(([cartData, meData]: [typeof cart, Me]) => {
+        setCart(cartData);
+        setMe(meData);
+        setRecipientName(meData.user.name ?? "");
+        setRecipientPhone(meData.user.phone ?? "");
+        setDepositorName(meData.user.name ?? "");
+        if (meData.user.address) {
+          setZipCode(meData.user.zip_code ?? "");
+          setAddress(meData.user.address ?? "");
+          setAddressDetail(meData.user.address_detail ?? "");
+        } else {
+          setAddressMode("manual");
+        }
+      })
+      .catch(() => setLoadError("상품 정보를 불러오지 못했습니다."));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -121,6 +152,7 @@ export default function CheckoutPage() {
         addressDetail: addressDetail || undefined,
         memo: memo || undefined,
         depositorName,
+        items: buyProductId ? [{ productId: Number(buyProductId), quantity: buyQuantity }] : undefined,
       }),
     });
     const data = await res.json();
@@ -131,6 +163,16 @@ export default function CheckoutPage() {
       return;
     }
     router.push(`/orders/${data.id}/complete`);
+  }
+
+  if (loadError) {
+    return (
+      <main className="min-h-screen bg-white">
+        <Header />
+        <div className="py-24 text-center text-sm text-gray-400">{loadError}</div>
+        <Footer />
+      </main>
+    );
   }
 
   if (!cart || !me) {

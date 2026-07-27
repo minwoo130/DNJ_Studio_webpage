@@ -67,6 +67,15 @@ export default function ProductActions({ productId }: { productId: number }) {
     }
   }
 
+  function handleBuyNow() {
+    const token = sessionStorage.getItem("token");
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+    router.push(`/checkout?buyProductId=${productId}&buyQuantity=1`);
+  }
+
   return (
     <div>
       <div className="mt-8 flex gap-2">
@@ -80,11 +89,17 @@ export default function ProductActions({ productId }: { productId: number }) {
         </button>
         <button
           onClick={handleAddToCart}
-          className="flex-1 rounded-md bg-black py-3 text-sm font-bold text-white"
+          className="flex-1 rounded-md border border-gray-300 py-3 text-sm font-semibold text-gray-700"
         >
           장바구니 담기
         </button>
       </div>
+      <button
+        onClick={handleBuyNow}
+        className="mt-2 w-full rounded-md bg-black py-3 text-sm font-bold text-white"
+      >
+        바로구매
+      </button>
       {message && <p className="mt-2 text-xs text-gray-400">{message}</p>}
     </div>
   );
