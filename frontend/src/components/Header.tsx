@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { getCategorySubTags, type ProductCategory } from "@/data/products";
@@ -8,6 +8,9 @@ import CartDrawer from "@/components/CartDrawer";
 import WishlistDrawer from "@/components/WishlistDrawer";
 import SearchOverlay from "@/components/SearchOverlay";
 import NotificationBell from "@/components/NotificationBell";
+import { onCartUpdated } from "@/lib/cartEvents";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 type NavItem =
   | { type: "link"; label: string; href: string }
@@ -56,6 +59,7 @@ export default function Header({ overlay = false }: { overlay?: boolean }) {
   const [cartOpen, setCartOpen] = useState(false);
   const [wishlistOpen, setWishlistOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
 
   useEffect(() => {
     function onScroll() {
@@ -76,6 +80,36 @@ export default function Header({ overlay = false }: { overlay?: boolean }) {
     setIsLoggedIn(Boolean(sessionStorage.getItem("token")));
   }, []);
 
+  const loadCartCount = useCallback(async () => {
+    const token = sessionStorage.getItem("token");
+    if (!token) {
+      setCartCount(0);
+      return;
+    }
+    try {
+      const res = await fetch(`${API_URL}/api/cart`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        setCartCount(0);
+        return;
+      }
+      const data = await res.json();
+      const count = (data.items ?? []).reduce(
+        (sum: number, item: { quantity: number }) => sum + item.quantity,
+        0
+      );
+      setCartCount(count);
+    } catch {
+      setCartCount(0);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCartCount();
+    return onCartUpdated(loadCartCount);
+  }, [loadCartCount]);
+
   const navItems: NavItem[] = isAdmin
     ? [...NAV_ITEMS, { type: "link", label: "관리자페이지", href: "/admin" }]
     : NAV_ITEMS;
@@ -93,7 +127,7 @@ export default function Header({ overlay = false }: { overlay?: boolean }) {
     <>
       <div className={`${overlay ? "fixed" : "sticky"} top-0 z-30 w-full`}>
         <div className="bg-black px-4 py-1.5 text-center text-[11px] text-white">
-          신규가입 시 3,000원 쿠폰 즉시 지급 · 7만원 이상 구매 시 무료배송
+          신규가입 시 3,000원 쿠폰 즉시 지급 · 6만원 이상 구매 시 무료배송
         </div>
 
         <div
@@ -213,9 +247,11 @@ export default function Header({ overlay = false }: { overlay?: boolean }) {
                     <path d="M6 8h12l-1 12H7L6 8z" strokeLinejoin="round" />
                     <path d="M9 8V6a3 3 0 0 1 6 0v2" strokeLinecap="round" />
                   </svg>
-                  <span className="absolute -right-1.5 -top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-brand-red text-[9px] font-bold text-white">
-                    0
-                  </span>
+                  {cartCount > 0 && (
+                    <span className="absolute -right-1.5 -top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-brand-red text-[9px] font-bold text-white">
+                      {cartCount > 99 ? "99+" : cartCount}
+                    </span>
+                  )}
                 </button>
                 <Link
                   href={isLoggedIn ? "/mypage" : "/login"}
@@ -243,9 +279,11 @@ export default function Header({ overlay = false }: { overlay?: boolean }) {
                   <path d="M6 8h12l-1 12H7L6 8z" strokeLinejoin="round" />
                   <path d="M9 8V6a3 3 0 0 1 6 0v2" strokeLinecap="round" />
                 </svg>
-                <span className="absolute -right-1.5 -top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-brand-red text-[9px] font-bold text-white">
-                  0
-                </span>
+                {cartCount > 0 && (
+                  <span className="absolute -right-1.5 -top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-brand-red text-[9px] font-bold text-white">
+                    {cartCount > 99 ? "99+" : cartCount}
+                  </span>
+                )}
               </button>
             </div>
           </div>

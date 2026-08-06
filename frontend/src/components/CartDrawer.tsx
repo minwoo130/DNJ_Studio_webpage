@@ -3,14 +3,18 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { resolveImageUrl } from "@/lib/image";
+import { emitCartUpdated } from "@/lib/cartEvents";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 type CartItem = {
+  id: number;
   productId: number;
   name: string;
   price: number;
   quantity: number;
+  color?: string;
+  size?: string;
   imageUrl?: string;
 };
 
@@ -38,6 +42,7 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
       const data = await res.json();
       setItems(data.items);
       setTotal(data.total);
+      emitCartUpdated();
     } catch {
       setItems([]);
     }
@@ -54,12 +59,12 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
     };
   }, [open]);
 
-  async function updateQuantity(productId: number, quantity: number) {
+  async function updateQuantity(id: number, quantity: number) {
     if (quantity < 1) return;
     const token = sessionStorage.getItem("token");
     if (!token) return;
     try {
-      await fetch(`${API_URL}/api/cart/${productId}`, {
+      await fetch(`${API_URL}/api/cart/${id}`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ quantity }),
@@ -70,11 +75,11 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
     load();
   }
 
-  async function removeItem(productId: number) {
+  async function removeItem(id: number) {
     const token = sessionStorage.getItem("token");
     if (!token) return;
     try {
-      await fetch(`${API_URL}/api/cart/${productId}`, {
+      await fetch(`${API_URL}/api/cart/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -125,7 +130,7 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
 
           {!needsLogin &&
             items?.map((item) => (
-              <div key={item.productId} className="flex items-center gap-3 border-b border-gray-50 py-4">
+              <div key={item.id} className="flex items-center gap-3 border-b border-gray-50 py-4">
                 <div className="relative aspect-[3/4] w-14 shrink-0 overflow-hidden rounded bg-gray-100">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -136,17 +141,22 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs">{item.name}</p>
+                  {(item.color || item.size) && (
+                    <p className="mt-0.5 text-[11px] text-gray-400">
+                      {[item.color, item.size].filter(Boolean).join(" / ")}
+                    </p>
+                  )}
                   <p className="mt-1 text-sm font-bold">{item.price.toLocaleString()}원</p>
                   <div className="mt-1.5 flex items-center gap-1.5">
                     <button
-                      onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                      onClick={() => updateQuantity(item.id, item.quantity - 1)}
                       className="h-6 w-6 rounded border border-gray-300 text-xs"
                     >
                       -
                     </button>
                     <span className="w-5 text-center text-xs">{item.quantity}</span>
                     <button
-                      onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                      onClick={() => updateQuantity(item.id, item.quantity + 1)}
                       className="h-6 w-6 rounded border border-gray-300 text-xs"
                     >
                       +
@@ -154,7 +164,7 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
                   </div>
                 </div>
                 <button
-                  onClick={() => removeItem(item.productId)}
+                  onClick={() => removeItem(item.id)}
                   aria-label="삭제"
                   className="text-[11px] text-gray-400 underline underline-offset-2"
                 >

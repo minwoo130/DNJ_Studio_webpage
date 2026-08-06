@@ -14,10 +14,10 @@ function issueToken(userId: number) {
 }
 
 router.post("/signup", async (req, res) => {
-  const { email, password, name, phone, birthDate, region, zipCode, address, addressDetail } = req.body ?? {};
+  const { email, password, name, phone, region, zipCode, address, addressDetail } = req.body ?? {};
 
-  if (!email || !password || !name || !birthDate || !region || !address) {
-    return res.status(400).json({ error: "email, password, name, birthDate, region, address는 필수입니다." });
+  if (!email || !password || !name || !region || !address) {
+    return res.status(400).json({ error: "email, password, name, region, address는 필수입니다." });
   }
   if (String(password).length < 8) {
     return res.status(400).json({ error: "비밀번호는 8자 이상이어야 합니다." });
@@ -34,10 +34,10 @@ router.post("/signup", async (req, res) => {
 
     await client.query("BEGIN");
     const userResult = await client.query(
-      `INSERT INTO users (email, password_hash, name, phone, birth_date, region, zip_code, address, address_detail)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO users (email, password_hash, name, phone, region, zip_code, address, address_detail)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING id, email, name, phone, birth_date, region, zip_code, address, address_detail, created_at`,
-      [email, passwordHash, name, phone ?? null, birthDate, region, zipCode ?? null, address, addressDetail ?? null]
+      [email, passwordHash, name, phone ?? null, region, zipCode ?? null, address, addressDetail ?? null]
     );
     const user = userResult.rows[0];
 
@@ -105,7 +105,23 @@ router.get("/me", requireAuth, async (req: AuthedRequest, res) => {
     [req.userId]
   );
 
-  res.json({ user, coupons: couponsResult.rows });
+  const [mileageBalanceResult, mileageHistoryResult] = await Promise.all([
+    pool.query(`SELECT COALESCE(SUM(amount), 0) AS balance FROM mileage_transactions WHERE user_id = $1`, [
+      req.userId,
+    ]),
+    pool.query(
+      `SELECT id, amount, reason, order_id, created_at
+       FROM mileage_transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50`,
+      [req.userId]
+    ),
+  ]);
+
+  res.json({
+    user,
+    coupons: couponsResult.rows,
+    mileageBalance: Number(mileageBalanceResult.rows[0].balance),
+    mileageHistory: mileageHistoryResult.rows,
+  });
 });
 
 export default router;

@@ -19,7 +19,6 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [birthDate, setBirthDate] = useState("");
   const [region, setRegion] = useState("");
   const [zipCode, setZipCode] = useState("");
   const [address, setAddress] = useState("");
@@ -60,7 +59,6 @@ export default function SignupPage() {
           password,
           name,
           phone: phone || undefined,
-          birthDate,
           region,
           zipCode: zipCode || undefined,
           address,
@@ -124,16 +122,6 @@ export default function SignupPage() {
             onChange={(e) => setPhone(e.target.value)}
             className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-black"
           />
-          <div>
-            <label className="mb-1 block text-xs text-gray-400">생년월일</label>
-            <input
-              type="date"
-              required
-              value={birthDate}
-              onChange={(e) => setBirthDate(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-black"
-            />
-          </div>
           <div>
             <label className="mb-1 block text-xs text-gray-400">배송받을 지역</label>
             <select

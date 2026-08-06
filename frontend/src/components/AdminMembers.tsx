@@ -49,6 +49,29 @@ export default function AdminMembers() {
     load();
   }
 
+  async function handleGrantCoupon(m: Member) {
+    const amountStr = prompt(`${m.name}(${m.email})님에게 지급할 쿠폰 금액을 입력하세요. (원)`);
+    if (amountStr === null) return;
+    const amount = Number(amountStr.replace(/[^0-9]/g, ""));
+    if (!Number.isInteger(amount) || amount <= 0) {
+      alert("올바른 금액을 입력해주세요.");
+      return;
+    }
+    const reason = prompt("지급 사유를 입력하세요.", "관리자 지급") ?? "관리자 지급";
+
+    const res = await fetch(`${API_URL}/api/admin/users/${m.id}/coupons`, {
+      method: "POST",
+      headers: { ...authHeader(), "Content-Type": "application/json" },
+      body: JSON.stringify({ amount, reason }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      alert(data?.error ?? "쿠폰 지급에 실패했습니다.");
+      return;
+    }
+    alert(`${m.name}님에게 ${amount.toLocaleString()}원 쿠폰을 지급했습니다.`);
+  }
+
   const filtered = members?.filter(
     (m) =>
       !query.trim() ||
@@ -101,14 +124,22 @@ export default function AdminMembers() {
                     )}
                   </td>
                   <td className="py-2.5 pr-3">
-                    {!m.isAdmin && (
+                    <div className="flex items-center gap-3">
                       <button
-                        onClick={() => handleWithdraw(m)}
-                        className="text-xs text-brand-red underline underline-offset-2"
+                        onClick={() => handleGrantCoupon(m)}
+                        className="text-xs text-gray-500 underline underline-offset-2"
                       >
-                        강제 탈퇴
+                        쿠폰 지급
                       </button>
-                    )}
+                      {!m.isAdmin && (
+                        <button
+                          onClick={() => handleWithdraw(m)}
+                          className="text-xs text-brand-red underline underline-offset-2"
+                        >
+                          강제 탈퇴
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

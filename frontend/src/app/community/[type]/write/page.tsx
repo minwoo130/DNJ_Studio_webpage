@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Link from "next/link";
-import { BOARD_LABELS, isBoardType } from "@/lib/community";
+import { BOARD_LABELS, isBoardType, isForcedPrivateBoard, isNoticeLikeBoard } from "@/lib/community";
 import MultiImageUpload from "@/components/MultiImageUpload";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
@@ -29,7 +29,7 @@ export default function CommunityWritePage() {
       router.push("/login");
       return;
     }
-    if (boardType === "notice") {
+    if (boardType && isNoticeLikeBoard(boardType)) {
       try {
         const user = JSON.parse(sessionStorage.getItem("user") ?? "null");
         if (!user?.isAdmin) {
@@ -48,11 +48,19 @@ export default function CommunityWritePage() {
     e.preventDefault();
     if (!boardType) return;
     setError(null);
+    const forcedPrivate = isForcedPrivateBoard(boardType);
+    const finalIsPrivate = forcedPrivate || isPrivate;
     const token = sessionStorage.getItem("token");
     const res = await fetch(`${API_URL}/api/community/${boardType}`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ title, content, isPrivate, password: isPrivate ? password : undefined, imageUrls }),
+      body: JSON.stringify({
+        title,
+        content,
+        isPrivate: finalIsPrivate,
+        password: finalIsPrivate ? password : undefined,
+        imageUrls,
+      }),
     });
     if (!res.ok) {
       const data = await res.json();
@@ -112,7 +120,23 @@ export default function CommunityWritePage() {
 
           <MultiImageUpload images={imageUrls} onChange={setImageUrls} />
 
-          {boardType !== "notice" && (
+          {!isNoticeLikeBoard(boardType) && isForcedPrivateBoard(boardType) && (
+            <div>
+              <p className="text-sm text-gray-600">
+                {BOARD_LABELS[boardType]}는 개인정보 보호를 위해 항상 비밀글로 등록됩니다.
+              </p>
+              <input
+                type="password"
+                required
+                placeholder="비밀글 비밀번호"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="mt-2 w-full max-w-xs rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-black"
+              />
+            </div>
+          )}
+
+          {!isNoticeLikeBoard(boardType) && !isForcedPrivateBoard(boardType) && (
             <div>
               <label className="flex items-center gap-2 text-sm text-gray-600">
                 <input

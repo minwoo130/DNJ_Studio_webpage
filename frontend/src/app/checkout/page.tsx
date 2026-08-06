@@ -6,6 +6,7 @@ import Link from "next/link";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { resolveImageUrl } from "@/lib/image";
+import { emitCartUpdated } from "@/lib/cartEvents";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
@@ -14,7 +15,17 @@ type CartItem = {
   name: string;
   price: number;
   quantity: number;
+  color?: string;
+  size?: string;
   imageUrl?: string;
+};
+
+type Coupon = {
+  id: number;
+  amount: number;
+  reason: string;
+  is_used: boolean;
+  expires_at: string | null;
 };
 
 type Me = {
@@ -25,6 +36,8 @@ type Me = {
     address: string | null;
     address_detail: string | null;
   };
+  coupons: Coupon[];
+  mileageBalance: number;
 };
 
 export default function CheckoutPage() {
@@ -40,9 +53,14 @@ function CheckoutForm() {
   const searchParams = useSearchParams();
   const buyProductId = searchParams.get("buyProductId");
   const buyQuantity = Math.max(1, Number(searchParams.get("buyQuantity")) || 1);
+  const buyColor = searchParams.get("color") ?? undefined;
+  const buySize = searchParams.get("size") ?? undefined;
 
   const [cart, setCart] = useState<{ items: CartItem[]; total: number } | null>(null);
   const [me, setMe] = useState<Me | null>(null);
+  const [guestMode, setGuestMode] = useState(false);
+  const [selectedCouponId, setSelectedCouponId] = useState<number | null>(null);
+  const [mileageInput, setMileageInput] = useState("");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [addressMode, setAddressMode] = useState<"default" | "manual">("default");
 
@@ -53,6 +71,9 @@ function CheckoutForm() {
   const [addressDetail, setAddressDetail] = useState("");
   const [memo, setMemo] = useState("");
   const [depositorName, setDepositorName] = useState("");
+  const [guestName, setGuestName] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
   const [agreeOrder, setAgreeOrder] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -64,7 +85,10 @@ function CheckoutForm() {
 
   useEffect(() => {
     const headers = authHeader();
-    if (!headers) {
+
+    // 장바구니 주문은 서버에 저장된 회원 장바구니가 필요하므로 로그인이 필요하다.
+    // 바로구매(buyProductId)는 비회원도 진행할 수 있다.
+    if (!headers && !buyProductId) {
       router.push("/login");
       return;
     }
@@ -80,13 +104,24 @@ function CheckoutForm() {
                 name: p.name,
                 price: p.price,
                 quantity: buyQuantity,
+                color: buyColor,
+                size: buySize,
                 imageUrl: p.imageUrl,
               },
             ],
             total: p.price * buyQuantity,
           };
         })
-      : fetch(`${API_URL}/api/cart`, { headers }).then((res) => res.json());
+      : fetch(`${API_URL}/api/cart`, { headers: headers! }).then((res) => res.json());
+
+    if (!headers) {
+      setGuestMode(true);
+      setAddressMode("manual");
+      cartPromise
+        .then((cartData) => setCart(cartData as typeof cart))
+        .catch(() => setLoadError("상품 정보를 불러오지 못했습니다."));
+      return;
+    }
 
     Promise.all([cartPromise, fetch(`${API_URL}/api/auth/me`, { headers }).then((res) => res.json())])
       .then(([cartData, meData]: [typeof cart, Me]) => {
@@ -136,14 +171,18 @@ function CheckoutForm() {
       setError("입금자명을 입력해주세요.");
       return;
     }
+    if (guestMode && (!guestName.trim() || !guestPhone.trim())) {
+      setError("주문자명, 휴대폰번호는 필수입니다.");
+      return;
+    }
 
     const headers = authHeader();
-    if (!headers) return;
+    if (!headers && !guestMode) return;
 
     setSubmitting(true);
     const res = await fetch(`${API_URL}/api/orders`, {
       method: "POST",
-      headers: { ...headers, "Content-Type": "application/json" },
+      headers: { ...(headers ?? {}), "Content-Type": "application/json" },
       body: JSON.stringify({
         recipientName,
         recipientPhone,
@@ -152,7 +191,14 @@ function CheckoutForm() {
         addressDetail: addressDetail || undefined,
         memo: memo || undefined,
         depositorName,
-        items: buyProductId ? [{ productId: Number(buyProductId), quantity: buyQuantity }] : undefined,
+        items: buyProductId
+          ? [{ productId: Number(buyProductId), quantity: buyQuantity, color: buyColor, size: buySize }]
+          : undefined,
+        guestName: guestMode ? guestName : undefined,
+        guestPhone: guestMode ? guestPhone : undefined,
+        guestEmail: guestMode ? guestEmail || undefined : undefined,
+        couponId: !guestMode && selectedCouponId ? selectedCouponId : undefined,
+        mileageUsed: !guestMode && mileageUsed > 0 ? mileageUsed : undefined,
       }),
     });
     const data = await res.json();
@@ -162,7 +208,13 @@ function CheckoutForm() {
       setError(data.error ?? "주문에 실패했습니다.");
       return;
     }
-    router.push(`/orders/${data.id}/complete`);
+    if (!buyProductId) {
+      emitCartUpdated();
+    }
+    const completeUrl = guestMode
+      ? `/orders/${data.id}/complete?phone=${encodeURIComponent(guestPhone)}`
+      : `/orders/${data.id}/complete`;
+    router.push(completeUrl);
   }
 
   if (loadError) {
@@ -175,7 +227,7 @@ function CheckoutForm() {
     );
   }
 
-  if (!cart || !me) {
+  if (!cart || (!me && !guestMode)) {
     return (
       <main className="min-h-screen bg-white">
         <Header />
@@ -194,6 +246,18 @@ function CheckoutForm() {
       </main>
     );
   }
+
+  const usableCoupons = (me?.coupons ?? []).filter(
+    (c) => !c.is_used && (!c.expires_at || new Date(c.expires_at) > new Date())
+  );
+  const selectedCoupon = usableCoupons.find((c) => c.id === selectedCouponId) ?? null;
+  const discount = selectedCoupon ? Math.min(selectedCoupon.amount, cart.total) : 0;
+
+  const mileageBalance = !guestMode ? me?.mileageBalance ?? 0 : 0;
+  const maxUsableMileage = Math.max(0, cart.total - discount);
+  const mileageUsed = Math.min(Math.max(0, Math.floor(Number(mileageInput)) || 0), mileageBalance, maxUsableMileage);
+  const finalTotal = cart.total - discount - mileageUsed;
+  const expectedMileageEarn = Math.round(finalTotal * 0.025);
 
   return (
     <main className="min-h-screen bg-white">
@@ -216,6 +280,11 @@ function CheckoutForm() {
                 </div>
                 <div className="flex-1 text-sm">
                   <p className="font-medium">{item.name}</p>
+                  {(item.color || item.size) && (
+                    <p className="mt-0.5 text-xs text-gray-400">
+                      {[item.color, item.size].filter(Boolean).join(" / ")}
+                    </p>
+                  )}
                   <p className="mt-0.5 text-xs text-gray-400">
                     {item.quantity}개 · {item.price.toLocaleString()}원
                   </p>
@@ -223,16 +292,134 @@ function CheckoutForm() {
               </div>
             ))}
           </div>
-          <div className="mt-2 flex items-center justify-between text-sm">
-            <span className="font-semibold">총 결제금액</span>
-            <span className="text-lg font-bold">{cart.total.toLocaleString()}원</span>
+
+          {!guestMode && usableCoupons.length > 0 && (
+            <div className="mt-4">
+              <h2 className="text-sm font-bold">쿠폰 사용</h2>
+              <div className="mt-2 space-y-1.5 rounded-md border border-gray-100 p-3 text-sm">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    checked={selectedCouponId === null}
+                    onChange={() => setSelectedCouponId(null)}
+                  />
+                  쿠폰 사용 안함
+                </label>
+                {usableCoupons.map((c) => (
+                  <label key={c.id} className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      checked={selectedCouponId === c.id}
+                      onChange={() => setSelectedCouponId(c.id)}
+                    />
+                    {c.amount.toLocaleString()}원 할인쿠폰
+                    {c.expires_at && (
+                      <span className="text-xs text-gray-400">
+                        (~{new Date(c.expires_at).toLocaleDateString("ko-KR")})
+                      </span>
+                    )}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!guestMode && mileageBalance > 0 && (
+            <div className="mt-4">
+              <h2 className="text-sm font-bold">적립금 사용</h2>
+              <div className="mt-2 flex items-center gap-2 rounded-md border border-gray-100 p-3 text-sm">
+                <input
+                  type="number"
+                  min={0}
+                  max={Math.min(mileageBalance, maxUsableMileage)}
+                  placeholder="0"
+                  value={mileageInput}
+                  onChange={(e) => setMileageInput(e.target.value)}
+                  className="w-28 rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-black"
+                />
+                <span className="text-gray-500">원</span>
+                <button
+                  type="button"
+                  onClick={() => setMileageInput(String(Math.min(mileageBalance, maxUsableMileage)))}
+                  className="ml-auto rounded-md border border-gray-300 px-3 py-1.5 text-xs text-gray-600 hover:border-black"
+                >
+                  전액 사용
+                </button>
+              </div>
+              <p className="mt-1 text-xs text-gray-400">
+                보유 적립금 {mileageBalance.toLocaleString()}원 (최대 {maxUsableMileage.toLocaleString()}원 사용 가능)
+              </p>
+            </div>
+          )}
+
+          <div className="mt-2 space-y-1 text-sm">
+            <div className="flex items-center justify-between text-gray-500">
+              <span>상품금액</span>
+              <span>{cart.total.toLocaleString()}원</span>
+            </div>
+            {discount > 0 && (
+              <div className="flex items-center justify-between text-brand-red">
+                <span>쿠폰 할인</span>
+                <span>-{discount.toLocaleString()}원</span>
+              </div>
+            )}
+            {mileageUsed > 0 && (
+              <div className="flex items-center justify-between text-brand-red">
+                <span>적립금 사용</span>
+                <span>-{mileageUsed.toLocaleString()}원</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between pt-1">
+              <span className="font-semibold">총 결제금액</span>
+              <span className="text-lg font-bold">{finalTotal.toLocaleString()}원</span>
+            </div>
+            {!guestMode && expectedMileageEarn > 0 && (
+              <p className="pt-1 text-right text-xs text-gray-400">
+                입금 확인 시 적립금 {expectedMileageEarn.toLocaleString()}원 적립 예정 (2.5%)
+              </p>
+            )}
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-3">
-          <h2 className="text-sm font-bold">배송지 정보</h2>
+          {guestMode && (
+            <>
+              <h2 className="text-sm font-bold">주문자 정보</h2>
+              <input
+                type="text"
+                required
+                placeholder="주문자명"
+                value={guestName}
+                onChange={(e) => setGuestName(e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-black"
+              />
+              <input
+                type="tel"
+                required
+                placeholder="휴대폰번호"
+                value={guestPhone}
+                onChange={(e) => setGuestPhone(e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-black"
+              />
+              <input
+                type="email"
+                placeholder="이메일 (선택, 주문조회 시 활용)"
+                value={guestEmail}
+                onChange={(e) => setGuestEmail(e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-black"
+              />
+              <p className="text-xs text-gray-400">
+                이미 회원이신가요?{" "}
+                <Link href="/login" className="font-semibold text-black underline underline-offset-2">
+                  로그인하고 주문하기
+                </Link>
+              </p>
+            </>
+          )}
 
-          {me.user.address && (
+          <h2 className="pt-2 text-sm font-bold">배송지 정보</h2>
+
+          {me?.user.address && (
             <div className="flex gap-4 text-sm">
               <label className="flex items-center gap-1.5">
                 <input

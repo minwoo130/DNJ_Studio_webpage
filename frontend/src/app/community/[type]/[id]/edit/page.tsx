@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { BOARD_LABELS, isBoardType } from "@/lib/community";
+import { BOARD_LABELS, isBoardType, isForcedPrivateBoard, isNoticeLikeBoard } from "@/lib/community";
 import MultiImageUpload from "@/components/MultiImageUpload";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
@@ -54,6 +54,7 @@ export default function CommunityEditPage() {
     e.preventDefault();
     if (!boardType) return;
     setError(null);
+    const finalIsPrivate = isForcedPrivateBoard(boardType) || isPrivate;
     const token = sessionStorage.getItem("token");
     const res = await fetch(`${API_URL}/api/community/${boardType}/${params.id}`, {
       method: "PUT",
@@ -61,7 +62,7 @@ export default function CommunityEditPage() {
       body: JSON.stringify({
         title,
         content,
-        isPrivate,
+        isPrivate: finalIsPrivate,
         password: password.trim() ? password : undefined,
         imageUrls,
       }),
@@ -108,7 +109,22 @@ export default function CommunityEditPage() {
 
           <MultiImageUpload images={imageUrls} onChange={setImageUrls} />
 
-          {boardType !== "notice" && (
+          {!isNoticeLikeBoard(boardType) && isForcedPrivateBoard(boardType) && (
+            <div>
+              <p className="text-sm text-gray-600">
+                {BOARD_LABELS[boardType]}는 개인정보 보호를 위해 항상 비밀글로 등록됩니다.
+              </p>
+              <input
+                type="password"
+                placeholder="비밀번호 변경 시에만 입력 (기존 비밀번호 유지하려면 비워두기)"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="mt-2 w-full max-w-xs rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-black"
+              />
+            </div>
+          )}
+
+          {!isNoticeLikeBoard(boardType) && !isForcedPrivateBoard(boardType) && (
             <div>
               <label className="flex items-center gap-2 text-sm text-gray-600">
                 <input

@@ -9,12 +9,14 @@ export async function fetchProducts(params?: {
   tag?: string;
   section?: "best" | "new";
   limit?: number;
+  heroSlot?: "new_arrival" | "best_item";
 }): Promise<Product[]> {
   const search = new URLSearchParams();
   if (params?.category) search.set("category", params.category);
   if (params?.tag) search.set("tag", params.tag);
   if (params?.section) search.set("section", params.section);
   if (params?.limit) search.set("limit", String(params.limit));
+  if (params?.heroSlot) search.set("heroSlot", params.heroSlot);
   const query = search.toString();
 
   try {

@@ -3,8 +3,9 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ProductActions from "@/components/ProductActions";
 import ProductReviews from "@/components/ProductReviews";
+import RotatingImage from "@/components/RotatingImage";
 import { fetchProduct } from "@/lib/products-api";
-import { resolveImageUrl } from "@/lib/image";
+import { resolveImageUrl, productImageList } from "@/lib/image";
 
 function discountRate(price: number, originalPrice?: number) {
   if (!originalPrice) return null;
@@ -23,9 +24,9 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
 
       <section className="mx-auto max-w-screen-lg px-4 py-8 sm:flex sm:gap-10 sm:py-12">
         <div className="relative aspect-[3/4] w-full overflow-hidden rounded-md bg-gray-100 sm:w-1/2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={resolveImageUrl(product.imageUrl, product.id)}
+          <RotatingImage
+            images={productImageList(product)}
+            fallbackId={product.id}
             alt={product.name}
             className="h-full w-full object-cover"
           />
@@ -55,7 +56,15 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
               </span>
             )}
           </div>
-          <ProductActions productId={product.id} />
+          {product.summary && <p className="mt-2 text-sm text-gray-600">{product.summary}</p>}
+          <ProductActions
+            productId={product.id}
+            name={product.name}
+            price={product.price}
+            colors={product.colors}
+            sizes={product.sizes}
+            relatedProducts={product.relatedProducts}
+          />
 
           {!product.detailContent && !product.detailImages?.length && (
             <p className="mt-6 text-xs text-gray-400">
@@ -65,23 +74,25 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
         </div>
       </section>
 
-      {product.detailImages && product.detailImages.length > 0 && (
-        <section className="mx-auto max-w-screen-lg border-t border-gray-100 px-4 py-8">
-          <div className="mx-auto flex max-w-3xl flex-col gap-6">
-            {product.detailImages.map((url, index) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img key={url + index} src={resolveImageUrl(url, product.id)} alt={`${product.name} 상세 이미지 ${index + 1}`} className="block w-full" />
-            ))}
-          </div>
-        </section>
-      )}
+      {((product.detailImages && product.detailImages.length > 0) || product.detailContent) && (
+        <section className="mx-auto max-w-screen-lg px-4 pb-8 pt-[51rem] sm:pt-[66rem]">
+          {product.detailImages && product.detailImages.length > 0 && (
+            <div className="mx-auto flex max-w-3xl flex-col gap-6">
+              {product.detailImages.map((url, index) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img key={url + index} src={resolveImageUrl(url, product.id)} alt={`${product.name} 상세 이미지 ${index + 1}`} className="block w-full" />
+              ))}
+            </div>
+          )}
 
-      {product.detailContent && (
-        <section className="mx-auto max-w-screen-lg border-t border-gray-100 px-4 py-8">
-          <div
-            className="rich-content mx-auto max-w-2xl"
-            dangerouslySetInnerHTML={{ __html: product.detailContent }}
-          />
+          {product.detailContent && (
+            <div
+              className={`rich-content mx-auto max-w-2xl ${
+                product.detailImages && product.detailImages.length > 0 ? "mt-8" : ""
+              }`}
+              dangerouslySetInnerHTML={{ __html: product.detailContent }}
+            />
+          )}
         </section>
       )}
 

@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { BOARD_LABELS, isBoardType, type BoardType } from "@/lib/community";
+import { BOARD_LABELS, isBoardType, isNoticeLikeBoard, type BoardType } from "@/lib/community";
 import { resolveImageUrl } from "@/lib/image";
 import { maskName } from "@/lib/mask";
 
@@ -77,7 +77,7 @@ function CommunityListPageInner() {
     );
   }
 
-  const canWrite = boardType !== "notice" || isAdmin;
+  const canWrite = !isNoticeLikeBoard(boardType) || isAdmin;
   const totalPages = Math.max(1, Math.ceil(total / limit));
 
   return (

@@ -6,13 +6,12 @@ const LINKS = [
   { label: "개인정보처리방침", href: "/policy/privacy" },
   { label: "배송정책", href: "/policy/shipping" },
   { label: "교환/반품", href: "/policy/returns" },
-  { label: "환불정책", href: "/policy/refund" },
 ];
 
 const BUSINESS_INFO = [
   "DNJ STUDIO",
   "대표자: 이동화",
-  "사업장주소: 서울 노원구 월계동 911-8 301",
+  "사업장주소: 서울 중랑구 신내로 7나길 24 209동 1004호",
   "사업자등록번호: 605-32-32593",
   "이메일: ldh09069674@gmail.com",
 ];
@@ -39,7 +38,7 @@ export default function Footer() {
           </nav>
 
           <a
-            href="https://instagram.com"
+            href="https://www.instagram.com/dnj_studio_/"
             target="_blank"
             rel="noreferrer"
             aria-label="Instagram"

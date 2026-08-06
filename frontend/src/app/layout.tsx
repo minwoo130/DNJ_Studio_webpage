@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Outfit } from "next/font/google";
+import Toast from "@/components/Toast";
+import FloatingSocial from "@/components/FloatingSocial";
 import "./globals.css";
 
 const logoFont = Outfit({
@@ -42,7 +44,11 @@ export default function RootLayout({
           href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css"
         />
       </head>
-      <body className={`${logoFont.variable} font-pretendard antialiased`}>{children}</body>
+      <body className={`${logoFont.variable} font-pretendard antialiased`}>
+        {children}
+        <FloatingSocial />
+        <Toast />
+      </body>
     </html>
   );
 }

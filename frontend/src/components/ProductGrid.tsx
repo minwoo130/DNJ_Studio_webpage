@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Product } from "@/data/products";
-import { resolveImageUrl } from "@/lib/image";
+import { productImageList } from "@/lib/image";
+import RotatingImage from "@/components/RotatingImage";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
@@ -72,9 +73,9 @@ export default function ProductGrid({ products }: { products: Product[] }) {
           <Link key={p.id} href={`/products/${p.id}`} className="group block">
             <article>
               <div className="relative aspect-[3/4] w-full overflow-hidden rounded-md bg-gray-100">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={resolveImageUrl(p.imageUrl, p.id)}
+                <RotatingImage
+                  images={productImageList(p)}
+                  fallbackId={p.id}
                   alt={p.name}
                   className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                 />

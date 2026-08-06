@@ -11,12 +11,19 @@ export type Product = {
   category: ProductCategory;
   tags: string[];
   imageUrl?: string;
+  imageUrls?: string[];
   detailContent?: string;
   detailImages?: string[];
   isWeeklyBest?: boolean;
   isNewArrival?: boolean;
   bestOrder?: number;
   newOrder?: number;
+  colors?: string[];
+  sizes?: string[];
+  summary?: string;
+  heroSlot?: "new_arrival" | "best_item";
+  relatedProductIds?: number[];
+  relatedProducts?: Product[];
 };
 
 // Static nav taxonomy — which subcategory tags show in the header dropdown per
@@ -27,7 +34,7 @@ const CATEGORY_TAGS: Record<ProductCategory, string[]> = {
   OUTER: ["자켓", "가디건", "집업", "셋업"],
   TOP: ["반팔", "가디건", "셔츠", "니트"],
   BOTTOM: ["데님", "슬랙스", "트레이닝", "반바지"],
-  ACC: ["신발"],
+  ACC: [],
 };
 
 export function getCategorySubTags(category: ProductCategory): string[] {

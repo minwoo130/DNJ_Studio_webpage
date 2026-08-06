@@ -7,6 +7,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { resolveImageUrl } from "@/lib/image";
 import { PAYMENT_STATUS_LABEL, ORDER_STATUS_LABEL, paymentStatusBadgeClass } from "@/lib/orderStatus";
+import { emitCartUpdated } from "@/lib/cartEvents";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
@@ -30,9 +31,18 @@ type Me = {
     is_used: boolean;
     expires_at: string | null;
   }[];
+  mileageBalance: number;
+  mileageHistory: {
+    id: number;
+    amount: number;
+    reason: string;
+    order_id: number | null;
+    created_at: string;
+  }[];
 };
 
 type CartItem = {
+  id: number;
   productId: number;
   name: string;
   price: number;
@@ -40,6 +50,8 @@ type CartItem = {
   badge?: string;
   category: string;
   quantity: number;
+  color?: string;
+  size?: string;
   imageUrl?: string;
 };
 
@@ -63,11 +75,19 @@ type Order = {
   depositorName?: string;
   depositDeadline?: string;
   paidAt?: string;
+  isShipped: boolean;
+  courierCompany?: string;
+  trackingNumber?: string;
+  cancelRequested: boolean;
+  subtotalAmount?: number;
+  discountAmount?: number;
   items: {
     productId: number;
     name: string;
     quantity: number;
     price: number;
+    color?: string;
+    size?: string;
     imageUrl?: string;
   }[];
 };
@@ -118,13 +138,13 @@ export default function MyPage() {
     load();
   }, [load]);
 
-  async function updateQuantity(productId: number, quantity: number) {
+  async function updateQuantity(id: number, quantity: number) {
     const headers = authHeader();
     if (!headers) return;
     if (quantity < 1) return;
 
     setError(null);
-    const res = await fetch(`${API_URL}/api/cart/${productId}`, {
+    const res = await fetch(`${API_URL}/api/cart/${id}`, {
       method: "PATCH",
       headers: { ...headers, "Content-Type": "application/json" },
       body: JSON.stringify({ quantity }),
@@ -133,14 +153,15 @@ export default function MyPage() {
       setError("수량 변경에 실패했습니다.");
       return;
     }
+    emitCartUpdated();
     load();
   }
 
-  async function removeItem(productId: number) {
+  async function removeItem(id: number) {
     const headers = authHeader();
     if (!headers) return;
 
-    const res = await fetch(`${API_URL}/api/cart/${productId}`, {
+    const res = await fetch(`${API_URL}/api/cart/${id}`, {
       method: "DELETE",
       headers,
     });
@@ -148,6 +169,7 @@ export default function MyPage() {
       setError("삭제에 실패했습니다.");
       return;
     }
+    emitCartUpdated();
     load();
   }
 
@@ -155,9 +177,27 @@ export default function MyPage() {
     router.push("/checkout");
   }
 
+  async function requestCancelOrder(orderId: number) {
+    const headers = authHeader();
+    if (!headers) return;
+    if (!confirm("이 주문의 취소를 요청하시겠습니까?")) return;
+
+    const res = await fetch(`${API_URL}/api/orders/${orderId}/request-cancel`, {
+      method: "PATCH",
+      headers,
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error ?? "취소 요청에 실패했습니다.");
+      return;
+    }
+    load();
+  }
+
   function handleLogout() {
     sessionStorage.removeItem("token");
     sessionStorage.removeItem("user");
+    emitCartUpdated();
     router.push("/");
   }
 
@@ -198,7 +238,7 @@ export default function MyPage() {
           </button>
         </div>
 
-        <div className="mt-6 grid grid-cols-4 gap-3">
+        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
           <div className="rounded-md border border-gray-100 py-5 text-center">
             <p className="text-lg font-bold">
               {cart.items.reduce((sum, i) => sum + i.quantity, 0)}
@@ -214,6 +254,10 @@ export default function MyPage() {
               {me.coupons.filter((c) => !c.is_used).reduce((sum, c) => sum + c.amount, 0).toLocaleString()}원
             </p>
             <p className="mt-1 text-xs text-gray-400">보유 쿠폰</p>
+          </div>
+          <div className="rounded-md border border-gray-100 py-5 text-center">
+            <p className="text-lg font-bold">{me.mileageBalance.toLocaleString()}원</p>
+            <p className="mt-1 text-xs text-gray-400">적립금</p>
           </div>
           <div className="rounded-md border border-gray-100 py-5 text-center">
             <p className="text-lg font-bold">{orders.length}</p>
@@ -236,7 +280,7 @@ export default function MyPage() {
           ) : (
             <div className="mt-4 divide-y divide-gray-100">
               {cart.items.map((item) => (
-                <div key={item.productId} className="flex items-center gap-4 py-4">
+                <div key={item.id} className="flex items-center gap-4 py-4">
                   <div className="relative aspect-[3/4] w-16 shrink-0 overflow-hidden rounded bg-gray-100">
                     <Link href={`/products/${item.productId}`}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -251,17 +295,22 @@ export default function MyPage() {
                     <Link href={`/products/${item.productId}`} className="text-sm font-medium">
                       {item.name}
                     </Link>
+                    {(item.color || item.size) && (
+                      <p className="mt-0.5 text-xs text-gray-400">
+                        {[item.color, item.size].filter(Boolean).join(" / ")}
+                      </p>
+                    )}
                     <p className="mt-1 text-sm font-bold">{item.price.toLocaleString()}원</p>
                     <div className="mt-2 flex items-center gap-2">
                       <button
-                        onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
                         className="h-7 w-7 rounded border border-gray-300 text-sm"
                       >
                         -
                       </button>
                       <span className="w-6 text-center text-sm">{item.quantity}</span>
                       <button
-                        onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
                         className="h-7 w-7 rounded border border-gray-300 text-sm"
                       >
                         +
@@ -269,7 +318,7 @@ export default function MyPage() {
                     </div>
                   </div>
                   <button
-                    onClick={() => removeItem(item.productId)}
+                    onClick={() => removeItem(item.id)}
                     aria-label="삭제"
                     className="text-xs text-gray-400 underline underline-offset-2"
                   >
@@ -360,6 +409,36 @@ export default function MyPage() {
           )}
         </div>
 
+        {/* 적립금 */}
+        <div className="mt-12">
+          <h2 className="text-lg font-bold tracking-tight">
+            적립금 <span className="text-sm font-normal text-gray-400">({me.mileageBalance.toLocaleString()}원 보유)</span>
+          </h2>
+          {me.mileageHistory.length === 0 ? (
+            <p className="mt-4 text-sm text-gray-400">적립/사용 내역이 없습니다.</p>
+          ) : (
+            <div className="mt-4 divide-y divide-gray-100">
+              {me.mileageHistory.map((m) => (
+                <div key={m.id} className="flex items-center justify-between py-3">
+                  <div>
+                    <p className="text-sm font-medium">
+                      {m.reason === "purchase" ? "구매 적립" : m.reason === "order_use" ? "주문 시 사용" : m.reason}
+                      {m.order_id ? ` (주문 #${m.order_id})` : ""}
+                    </p>
+                    <p className="mt-0.5 text-xs text-gray-400">
+                      {new Date(m.created_at).toLocaleDateString("ko-KR")}
+                    </p>
+                  </div>
+                  <span className={`text-sm font-semibold ${m.amount >= 0 ? "text-brand-red" : "text-gray-500"}`}>
+                    {m.amount >= 0 ? "+" : ""}
+                    {m.amount.toLocaleString()}원
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* 회원정보 */}
         <div className="mt-12">
           <h2 className="text-lg font-bold tracking-tight">회원정보</h2>
@@ -405,10 +484,25 @@ export default function MyPage() {
                     <span className="rounded bg-gray-50 px-2 py-0.5 text-[11px] font-bold text-gray-500">
                       {ORDER_STATUS_LABEL[order.status] ?? order.status}
                     </span>
+                    {order.isShipped && (
+                      <span className="rounded bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-600">
+                        배송중
+                      </span>
+                    )}
+                    {order.cancelRequested && (
+                      <span className="rounded bg-brand-red px-2 py-0.5 text-[11px] font-bold text-white">
+                        취소요청중
+                      </span>
+                    )}
                   </div>
+                  {order.isShipped && order.trackingNumber && (
+                    <p className="mt-1 text-xs text-gray-400">
+                      {order.courierCompany} {order.trackingNumber}
+                    </p>
+                  )}
                   <div className="mt-2 space-y-2">
-                    {order.items.map((item) => (
-                      <div key={item.productId} className="flex items-center gap-3">
+                    {order.items.map((item, i) => (
+                      <div key={`${item.productId}-${item.color ?? ""}-${item.size ?? ""}-${i}`} className="flex items-center gap-3">
                         <div className="relative aspect-[3/4] w-12 shrink-0 overflow-hidden rounded bg-gray-100">
                           <Link href={`/products/${item.productId}`}>
                             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -423,6 +517,11 @@ export default function MyPage() {
                           <Link href={`/products/${item.productId}`} className="font-medium">
                             {item.name}
                           </Link>
+                          {(item.color || item.size) && (
+                            <p className="text-xs text-gray-400">
+                              {[item.color, item.size].filter(Boolean).join(" / ")}
+                            </p>
+                          )}
                           <p className="mt-0.5 text-xs text-gray-400">
                             {item.quantity}개 · {item.price.toLocaleString()}원
                           </p>
@@ -430,6 +529,31 @@ export default function MyPage() {
                       </div>
                     ))}
                   </div>
+                  {(order.discountAmount ?? 0) > 0 && (
+                    <div className="mt-2 space-y-0.5 text-xs text-gray-400">
+                      <div className="flex justify-between">
+                        <span>상품금액</span>
+                        <span>{(order.subtotalAmount ?? order.totalAmount).toLocaleString()}원</span>
+                      </div>
+                      <div className="flex justify-between text-brand-red">
+                        <span>쿠폰 할인</span>
+                        <span>-{(order.discountAmount ?? 0).toLocaleString()}원</span>
+                      </div>
+                    </div>
+                  )}
+                  {!order.isShipped &&
+                    !order.cancelRequested &&
+                    order.status !== "cancelled" &&
+                    order.paymentStatus !== "CANCELLED" && (
+                      <div className="mt-2">
+                        <button
+                          onClick={() => requestCancelOrder(order.id)}
+                          className="text-xs text-gray-400 underline underline-offset-2"
+                        >
+                          주문취소 요청
+                        </button>
+                      </div>
+                    )}
                 </div>
               ))}
             </div>

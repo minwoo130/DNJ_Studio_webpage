@@ -12,7 +12,7 @@ export default function ShippingPolicyPage() {
       <h2>배송비</h2>
       <ul>
         <li>기본 배송비: 3,000원</li>
-        <li>7만원 이상 구매 시 무료배송</li>
+        <li>6만원 이상 구매 시 무료배송</li>
       </ul>
 
       <h2>배송지 안내</h2>

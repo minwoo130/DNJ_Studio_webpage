@@ -10,7 +10,7 @@ services:
       - /app/.next
     environment:
       - WATCHPACK_POLLING=true
-      - NEXT_PUBLIC_API_URL=http://localhost:30002
+      - NEXT_PUBLIC_API_URL=
       - API_INTERNAL_URL=http://backend:4000
     depends_on:
       - backend

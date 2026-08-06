@@ -15,33 +15,29 @@ type Slide = {
 
 // TODO: remaining photo slots (best/mood 슬라이드 6장) are still empty placeholders —
 // drop real photography into frontend/public/banners/ and wire slotPhotos once files exist.
-const SLIDES: Slide[] = [
-  {
-    id: "seasonal",
-    href: "/seasonal",
-    eyebrow: "NEW ARRIVAL",
-    title: "2026 여름 신상 입고",
-    cta: "계절상품 보러가기",
-    slotLabels: ["사진 1", "사진 2", "사진 3"],
-    slotPhotos: ["/banners/seasonal-1.jpg", "/banners/seasonal-2.jpg", "/banners/seasonal-3.jpg"],
-  },
-  {
-    id: "best",
-    href: "/best",
-    eyebrow: "BEST",
-    title: "가장 많이 팔린 상품",
-    cta: "베스트 상품 보러가기",
-    slotLabels: ["사진 4", "사진 5", "사진 6"],
-  },
-  {
-    id: "mood",
-    eyebrow: "DNJ STUDIO",
-    title: "MENS WEAR ONLINE STORE",
-    slotLabels: ["사진 7", "사진 8", "사진 9"],
-  },
-];
+function buildSlides(newArrivalHref?: string, bestItemHref?: string): Slide[] {
+  return [
+    {
+      id: "seasonal",
+      href: newArrivalHref,
+      eyebrow: "NEW ARRIVAL",
+      title: "2026 S/S NEW ARRIVAL",
+      cta: newArrivalHref ? "상품 보러가기" : undefined,
+      slotLabels: ["사진 1", "사진 2", "사진 3"],
+      slotPhotos: ["/banners/seasonal-1.jpg", "/banners/seasonal-2.jpg", "/banners/seasonal-3.jpg"],
+    },
+    {
+      id: "best",
+      href: bestItemHref,
+      eyebrow: "BEST",
+      title: "2026 S/S BEST ITEM",
+      cta: bestItemHref ? "상품 보러가기" : undefined,
+      slotLabels: ["사진 4", "사진 5", "사진 6"],
+    },
+  ];
+}
 
-const INTERVAL_MS = 2000;
+const INTERVAL_MS = 4000;
 
 function PhotoSlot({ label, photo }: { label: string; photo?: string }) {
   if (photo) {
@@ -62,15 +58,22 @@ function PhotoSlot({ label, photo }: { label: string; photo?: string }) {
   );
 }
 
-export default function HeroBanner() {
+export default function HeroBanner({
+  newArrivalHref,
+  bestItemHref,
+}: {
+  newArrivalHref?: string;
+  bestItemHref?: string;
+}) {
   const [active, setActive] = useState(0);
+  const SLIDES = buildSlides(newArrivalHref, bestItemHref);
 
   useEffect(() => {
     const timer = setInterval(() => {
       setActive((prev) => (prev + 1) % SLIDES.length);
     }, INTERVAL_MS);
     return () => clearInterval(timer);
-  }, [active]);
+  }, [active, SLIDES.length]);
 
   function goPrev() {
     setActive((prev) => (prev - 1 + SLIDES.length) % SLIDES.length);

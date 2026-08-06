@@ -15,10 +15,11 @@ type FormState = {
   name: string;
   price: string;
   originalPrice: string;
+  summary: string;
   badge: string;
   category: ProductCategory;
   subTags: string[];
-  imageUrl: string;
+  imageUrls: string[];
   detailContent: string;
   detailImages: string[];
   isWeeklyBest: boolean;
@@ -27,6 +28,10 @@ type FormState = {
   isDelayed: boolean;
   bestOrder: string;
   newOrder: string;
+  colors: string[];
+  sizes: string[];
+  heroSlot: "" | "new_arrival" | "best_item";
+  relatedProductIds: number[];
 };
 
 const emptyForm: FormState = {
@@ -34,10 +39,11 @@ const emptyForm: FormState = {
   name: "",
   price: "",
   originalPrice: "",
+  summary: "",
   badge: "",
   category: "TOP",
   subTags: [],
-  imageUrl: "",
+  imageUrls: [],
   detailContent: "",
   detailImages: [],
   isWeeklyBest: false,
@@ -46,14 +52,164 @@ const emptyForm: FormState = {
   isDelayed: false,
   bestOrder: "",
   newOrder: "",
+  colors: [],
+  sizes: [],
+  heroSlot: "",
+  relatedProductIds: [],
 };
 
 const SAME_DAY_SHIP_TAG = "당일출발";
 const DELAYED_TAG = "입고지연";
+const MAX_THUMBNAIL_IMAGES = 3;
 
 function authHeader() {
   const token = sessionStorage.getItem("token");
   return token ? { Authorization: `Bearer ${token}` } : undefined;
+}
+
+function OptionListEditor({
+  label,
+  placeholder,
+  values,
+  onChange,
+}: {
+  label: string;
+  placeholder: string;
+  values: string[];
+  onChange: (values: string[]) => void;
+}) {
+  const [draft, setDraft] = useState("");
+
+  function add() {
+    const value = draft.trim();
+    if (!value || values.includes(value)) {
+      setDraft("");
+      return;
+    }
+    onChange([...values, value]);
+    setDraft("");
+  }
+
+  return (
+    <div className="col-span-2 sm:col-span-2">
+      <p className="mb-1.5 text-xs font-semibold text-gray-500">{label} (설정하지 않으면 상세페이지에 노출되지 않습니다)</p>
+      <div className="flex gap-1.5">
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              add();
+            }
+          }}
+          placeholder={placeholder}
+          className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm"
+        />
+        <button
+          type="button"
+          onClick={add}
+          className="rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-600 hover:border-black"
+        >
+          추가
+        </button>
+      </div>
+      {values.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {values.map((v) => (
+            <span
+              key={v}
+              className="flex items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1 text-xs text-gray-600"
+            >
+              {v}
+              <button
+                type="button"
+                onClick={() => onChange(values.filter((x) => x !== v))}
+                aria-label={`${v} 삭제`}
+                className="text-gray-400 hover:text-brand-red"
+              >
+                &times;
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RelatedProductPicker({
+  allProducts,
+  excludeId,
+  selectedIds,
+  onChange,
+}: {
+  allProducts: Product[];
+  excludeId: number | null;
+  selectedIds: number[];
+  onChange: (ids: number[]) => void;
+}) {
+  const [draft, setDraft] = useState("");
+  const candidates = allProducts.filter((p) => p.id !== excludeId && !selectedIds.includes(p.id));
+  const selectedProducts = selectedIds
+    .map((id) => allProducts.find((p) => p.id === id))
+    .filter((p): p is Product => Boolean(p));
+
+  function add() {
+    const id = Number(draft);
+    if (!id || selectedIds.includes(id)) return;
+    onChange([...selectedIds, id]);
+    setDraft("");
+  }
+
+  return (
+    <div className="col-span-2 sm:col-span-4">
+      <p className="mb-1.5 text-xs font-semibold text-gray-500">
+        연관 상품 — 서로의 상세페이지에 함께 노출됩니다 (바로구매 버튼 아래)
+      </p>
+      <div className="flex gap-1.5">
+        <select
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm"
+        >
+          <option value="">상품 선택...</option>
+          {candidates.map((p) => (
+            <option key={p.id} value={p.id}>
+              #{p.id} {p.name}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          onClick={add}
+          className="rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-600 hover:border-black"
+        >
+          추가
+        </button>
+      </div>
+      {selectedProducts.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {selectedProducts.map((p) => (
+            <span
+              key={p.id}
+              className="flex items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1 text-xs text-gray-600"
+            >
+              {p.name}
+              <button
+                type="button"
+                onClick={() => onChange(selectedIds.filter((id) => id !== p.id))}
+                aria-label={`${p.name} 삭제`}
+                className="text-gray-400 hover:text-brand-red"
+              >
+                &times;
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function AdminInventory() {
@@ -80,10 +236,11 @@ export default function AdminInventory() {
       name: p.name,
       price: String(p.price),
       originalPrice: p.originalPrice ? String(p.originalPrice) : "",
+      summary: p.summary ?? "",
       badge: p.badge ?? "",
       category: p.category,
       subTags: p.tags.filter((t) => subOptions.includes(t)),
-      imageUrl: p.imageUrl ?? "",
+      imageUrls: p.imageUrls && p.imageUrls.length > 0 ? p.imageUrls : p.imageUrl ? [p.imageUrl] : [],
       detailContent: p.detailContent ?? "",
       detailImages: p.detailImages ?? [],
       isWeeklyBest: p.isWeeklyBest ?? false,
@@ -92,29 +249,59 @@ export default function AdminInventory() {
       isDelayed: p.tags.includes(DELAYED_TAG),
       bestOrder: p.bestOrder != null ? String(p.bestOrder) : "",
       newOrder: p.newOrder != null ? String(p.newOrder) : "",
+      colors: p.colors ?? [],
+      sizes: p.sizes ?? [],
+      heroSlot: p.heroSlot ?? "",
+      relatedProductIds: p.relatedProductIds ?? [],
     });
     setError(null);
   }
 
-  async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    setError(null);
-    const body = new FormData();
-    body.append("image", file);
-    const res = await fetch(`${API_URL}/api/products/upload`, {
-      method: "POST",
-      headers: authHeader(),
-      body,
-    });
-    setUploading(false);
-    if (!res.ok) {
-      setError("이미지 업로드에 실패했습니다.");
+  async function handleThumbnailImagesChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (!files.length) return;
+
+    const remaining = MAX_THUMBNAIL_IMAGES - form.imageUrls.length;
+    if (remaining <= 0) {
+      setError(`대표 이미지는 최대 ${MAX_THUMBNAIL_IMAGES}장까지 등록할 수 있습니다.`);
       return;
     }
-    const data = await res.json();
-    setForm((f) => ({ ...f, imageUrl: data.url }));
+
+    setUploading(true);
+    setError(null);
+
+    for (const file of files.slice(0, remaining)) {
+      const body = new FormData();
+      body.append("image", file);
+      const res = await fetch(`${API_URL}/api/products/upload`, {
+        method: "POST",
+        headers: authHeader(),
+        body,
+      });
+      if (!res.ok) {
+        setError(`"${file.name}" 업로드에 실패했습니다.`);
+        continue;
+      }
+      const data = await res.json();
+      setForm((f) => ({ ...f, imageUrls: [...f.imageUrls, data.url as string] }));
+    }
+
+    setUploading(false);
+  }
+
+  function moveThumbnailImage(index: number, direction: -1 | 1) {
+    setForm((f) => {
+      const target = index + direction;
+      if (target < 0 || target >= f.imageUrls.length) return f;
+      const next = [...f.imageUrls];
+      [next[index], next[target]] = [next[target], next[index]];
+      return { ...f, imageUrls: next };
+    });
+  }
+
+  function removeThumbnailImage(index: number) {
+    setForm((f) => ({ ...f, imageUrls: f.imageUrls.filter((_, i) => i !== index) }));
   }
 
   async function handleDetailImagesChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -176,6 +363,7 @@ export default function AdminInventory() {
       name: form.name.trim(),
       price: Number(form.price),
       originalPrice: form.originalPrice ? Number(form.originalPrice) : null,
+      summary: form.summary.trim() || null,
       badge: form.badge || null,
       category: form.category,
       tags: Array.from(
@@ -185,13 +373,17 @@ export default function AdminInventory() {
           ...(form.isDelayed ? [DELAYED_TAG] : []),
         ])
       ),
-      imageUrl: form.imageUrl || null,
+      imageUrls: form.imageUrls,
       detailContent: form.detailContent,
       detailImages: form.detailImages,
       isWeeklyBest: form.isWeeklyBest,
       isNewArrival: form.isNewArrival,
       bestOrder: form.isWeeklyBest && form.bestOrder ? Number(form.bestOrder) : null,
       newOrder: form.isNewArrival && form.newOrder ? Number(form.newOrder) : null,
+      colors: form.colors,
+      sizes: form.sizes,
+      heroSlot: form.heroSlot || null,
+      relatedProductIds: form.relatedProductIds,
     };
 
     const url = form.id ? `${API_URL}/api/products/${form.id}` : `${API_URL}/api/products`;
@@ -365,6 +557,21 @@ export default function AdminInventory() {
           BEST / NEW 5% 순서는 1~6 중에서 고를 수 있고(왼쪽부터 오름차순 노출), 상품마다 겹치지 않게 자동으로 이미 쓰인 번호는 목록에서 빠집니다. 순서를 정하지 않은 상품은 뒤로 밀려서 6개 안에 못 들 수 있어요.
         </p>
 
+        <div className="col-span-2 sm:col-span-4">
+          <p className="mb-1.5 text-xs font-semibold text-gray-500">
+            메인페이지 히어로 배너 연결 — 슬롯당 상품 1개만 연결되며, 새로 지정하면 기존 연결은 자동 해제됩니다
+          </p>
+          <select
+            value={form.heroSlot}
+            onChange={(e) => setForm((f) => ({ ...f, heroSlot: e.target.value as FormState["heroSlot"] }))}
+            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+          >
+            <option value="">연결 안함</option>
+            <option value="new_arrival">2026 S/S NEW ARRIVAL 배너에 연결</option>
+            <option value="best_item">2026 S/S BEST ITEM 배너에 연결</option>
+          </select>
+        </div>
+
         <input
           type="number"
           placeholder="판매가"
@@ -381,21 +588,96 @@ export default function AdminInventory() {
         />
 
         <div className="col-span-2 sm:col-span-4">
-          <p className="mb-1.5 text-xs font-semibold text-gray-500">대표(썸네일) 이미지 — 목록/카드에 노출되는 사진 1장</p>
+          <p className="mb-1.5 text-xs font-semibold text-gray-500">
+            한줄 소개 — 상세페이지 가격 아래에 노출됩니다 (선택)
+          </p>
+          <textarea
+            rows={2}
+            placeholder="예: 부드러운 촉감의 캐시미어 혼방 코트"
+            value={form.summary}
+            onChange={(e) => setForm((f) => ({ ...f, summary: e.target.value }))}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+          />
+        </div>
+
+        <OptionListEditor
+          label="색상 옵션"
+          placeholder="예: 블랙"
+          values={form.colors}
+          onChange={(colors) => setForm((f) => ({ ...f, colors }))}
+        />
+        <OptionListEditor
+          label="사이즈 옵션"
+          placeholder="예: L"
+          values={form.sizes}
+          onChange={(sizes) => setForm((f) => ({ ...f, sizes }))}
+        />
+
+        <RelatedProductPicker
+          allProducts={products ?? []}
+          excludeId={form.id}
+          selectedIds={form.relatedProductIds}
+          onChange={(relatedProductIds) => setForm((f) => ({ ...f, relatedProductIds }))}
+        />
+
+        <div className="col-span-2 sm:col-span-4">
+          <p className="mb-1.5 text-xs font-semibold text-gray-500">
+            대표(썸네일) 이미지 — 목록/카드에 노출되는 사진, 최대 {MAX_THUMBNAIL_IMAGES}장 (2장 이상이면 카드에서 2초 간격으로 자동 전환됩니다)
+          </p>
           <div className="flex items-center gap-3">
-            <input type="file" accept="image/*" onChange={handleImageChange} className="text-xs" />
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              disabled={form.imageUrls.length >= MAX_THUMBNAIL_IMAGES}
+              onChange={handleThumbnailImagesChange}
+              className="text-xs disabled:opacity-40"
+            />
             {uploading && <span className="text-xs text-gray-400">업로드 중...</span>}
-            {form.imageUrl && (
-              <div className="relative h-14 w-11 shrink-0 overflow-hidden rounded bg-gray-100">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={resolveImageUrl(form.imageUrl, form.id ?? 0)}
-                  alt="미리보기"
-                  className="h-full w-full object-cover"
-                />
-              </div>
-            )}
           </div>
+
+          {form.imageUrls.length > 0 && (
+            <div className="mt-3 flex flex-col gap-2">
+              {form.imageUrls.map((url, index) => (
+                <div key={url + index} className="flex items-center gap-3 rounded-md border border-gray-200 p-2">
+                  <span className="w-5 shrink-0 text-center text-xs text-gray-400">{index + 1}</span>
+                  <div className="relative h-14 w-11 shrink-0 overflow-hidden rounded bg-gray-100">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={resolveImageUrl(url, form.id ?? 0)}
+                      alt={`대표 이미지 ${index + 1}`}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                  <div className="flex flex-1 justify-end gap-1">
+                    <button
+                      type="button"
+                      onClick={() => moveThumbnailImage(index, -1)}
+                      disabled={index === 0}
+                      className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-600 disabled:opacity-30"
+                    >
+                      ▲
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveThumbnailImage(index, 1)}
+                      disabled={index === form.imageUrls.length - 1}
+                      className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-600 disabled:opacity-30"
+                    >
+                      ▼
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeThumbnailImage(index)}
+                      className="rounded border border-gray-300 px-2 py-1 text-xs text-brand-red"
+                    >
+                      삭제
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="col-span-2 sm:col-span-4">
@@ -484,7 +766,7 @@ export default function AdminInventory() {
             <div className="relative aspect-[3/4] w-11 shrink-0 overflow-hidden rounded bg-gray-100">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={resolveImageUrl(p.imageUrl, p.id)}
+                src={resolveImageUrl(p.imageUrls?.[0] ?? p.imageUrl, p.id)}
                 alt={p.name}
                 className="h-full w-full object-cover"
               />

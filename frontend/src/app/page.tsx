@@ -36,17 +36,22 @@ function SectionHeading({
 }
 
 export default async function Home() {
-  const [WEEKLY_BEST, NEW_ARRIVALS, NOTICES] = await Promise.all([
-    fetchProducts({ section: "best", limit: 6 }),
-    fetchProducts({ section: "new", limit: 6 }),
+  const [WEEKLY_BEST, NEW_ARRIVALS, NOTICES, heroNewArrival, heroBestItem] = await Promise.all([
+    fetchProducts({ section: "best", limit: 3 }),
+    fetchProducts({ section: "new", limit: 3 }),
     fetchNotices(5),
+    fetchProducts({ heroSlot: "new_arrival", limit: 1 }),
+    fetchProducts({ heroSlot: "best_item", limit: 1 }),
   ]);
 
   return (
     <main className="min-h-screen bg-white">
       <Header overlay />
 
-      <HeroBanner />
+      <HeroBanner
+        newArrivalHref={heroNewArrival[0] ? `/products/${heroNewArrival[0].id}` : undefined}
+        bestItemHref={heroBestItem[0] ? `/products/${heroBestItem[0].id}` : undefined}
+      />
 
       <section className="mx-auto max-w-screen-lg px-4 pb-10 pt-20 sm:pb-14 sm:pt-28">
         <SectionHeading title="NOTICE" moreLabel="더보기" moreHref="/community/notice" />

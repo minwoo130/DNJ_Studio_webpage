@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
@@ -10,6 +10,8 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 type OrderDetail = {
   id: number;
   totalAmount: number;
+  subtotalAmount?: number;
+  discountAmount?: number;
   paymentStatus: string;
   depositDeadline?: string;
   depositorName?: string;
@@ -22,21 +24,37 @@ type BankInfo = {
 };
 
 export default function OrderCompletePage() {
+  return (
+    <Suspense fallback={null}>
+      <OrderComplete />
+    </Suspense>
+  );
+}
+
+function OrderComplete() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const guestPhone = searchParams.get("phone");
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [bank, setBank] = useState<BankInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isGuestView, setIsGuestView] = useState(false);
 
   useEffect(() => {
     const token = sessionStorage.getItem("token");
-    if (!token) {
+    if (!token && !guestPhone) {
       router.push("/login");
       return;
     }
+    setIsGuestView(!token);
+
+    const orderUrl = token
+      ? `${API_URL}/api/orders/${id}`
+      : `${API_URL}/api/orders/${id}?phone=${encodeURIComponent(guestPhone!)}`;
 
     Promise.all([
-      fetch(`${API_URL}/api/orders/${id}`, { headers: { Authorization: `Bearer ${token}` } }).then((res) =>
+      fetch(orderUrl, token ? { headers: { Authorization: `Bearer ${token}` } } : undefined).then((res) =>
         res.ok ? res.json() : null
       ),
       fetch(`${API_URL}/api/orders/bank-info`).then((res) => res.json()),
@@ -93,6 +111,18 @@ export default function OrderCompletePage() {
             <span className="text-gray-400">예금주</span>
             <span className="font-semibold">{bank.accountHolder}</span>
           </div>
+          {(order.discountAmount ?? 0) > 0 && (
+            <>
+              <div className="flex justify-between">
+                <span className="text-gray-400">상품금액</span>
+                <span>{(order.subtotalAmount ?? order.totalAmount).toLocaleString()}원</span>
+              </div>
+              <div className="flex justify-between text-brand-red">
+                <span>쿠폰 할인</span>
+                <span>-{(order.discountAmount ?? 0).toLocaleString()}원</span>
+              </div>
+            </>
+          )}
           <div className="flex justify-between">
             <span className="text-gray-400">입금금액</span>
             <span className="font-bold">{order.totalAmount.toLocaleString()}원</span>
@@ -111,8 +141,11 @@ export default function OrderCompletePage() {
 
         <p className="mt-4 text-xs text-brand-red">반드시 주문자명과 동일하게 입금해주세요.</p>
 
-        <a href="/mypage#orders" className="mt-8 inline-block rounded-md bg-black px-6 py-3 text-sm font-bold text-white">
-          주문내역 보기
+        <a
+          href={isGuestView ? "/" : "/mypage#orders"}
+          className="mt-8 inline-block rounded-md bg-black px-6 py-3 text-sm font-bold text-white"
+        >
+          {isGuestView ? "쇼핑 계속하기" : "주문내역 보기"}
         </a>
       </section>
       <Footer />

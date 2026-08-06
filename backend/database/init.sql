@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS products (
   category       VARCHAR(20) NOT NULL,
   tags           TEXT[] NOT NULL DEFAULT '{}',
   image_url      VARCHAR(500),
+  image_urls     TEXT[] NOT NULL DEFAULT '{}',
   detail_content TEXT NOT NULL DEFAULT '',
   detail_images  TEXT[] NOT NULL DEFAULT '{}',
   is_weekly_best BOOLEAN NOT NULL DEFAULT false,
@@ -167,3 +168,84 @@ CREATE TABLE IF NOT EXISTS community_comments (
 );
 
 CREATE INDEX IF NOT EXISTS idx_community_comments_post_id ON community_comments(post_id);
+
+-- 상품 옵션(색상/사이즈): 관리자가 설정한 값이 있을 때만 상세페이지에 선택창이 노출된다.
+ALTER TABLE products
+  ADD COLUMN IF NOT EXISTS colors TEXT[] NOT NULL DEFAULT '{}',
+  ADD COLUMN IF NOT EXISTS sizes  TEXT[] NOT NULL DEFAULT '{}';
+
+-- 장바구니/주문 아이템에 선택한 옵션을 함께 저장 (옵션 없는 상품은 빈 문자열).
+ALTER TABLE cart_items
+  ADD COLUMN IF NOT EXISTS color VARCHAR(50) NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS size  VARCHAR(50) NOT NULL DEFAULT '';
+
+ALTER TABLE cart_items DROP CONSTRAINT IF EXISTS cart_items_user_id_product_id_key;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_cart_items_user_product_variant
+  ON cart_items(user_id, product_id, color, size);
+
+ALTER TABLE order_items
+  ADD COLUMN IF NOT EXISTS color VARCHAR(50) NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS size  VARCHAR(50) NOT NULL DEFAULT '';
+
+-- 가입 축하 쿠폰(3,000원)을 주문서에서 적용할 수 있도록 주문에 쿠폰/할인 금액을 기록.
+-- total_amount는 할인 반영 후 실제 입금해야 할 금액, subtotal_amount는 할인 전 금액.
+ALTER TABLE orders
+  ADD COLUMN IF NOT EXISTS coupon_id       INTEGER REFERENCES user_coupons(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS discount_amount INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS subtotal_amount INTEGER NOT NULL DEFAULT 0;
+
+UPDATE orders SET subtotal_amount = total_amount WHERE subtotal_amount = 0;
+
+-- 배송시작 시 입력하는 택배사/운송장번호 (카카오채널 알림톡 발송 연동용).
+ALTER TABLE orders
+  ADD COLUMN IF NOT EXISTS courier_company VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS tracking_number VARCHAR(50);
+
+-- 구매자 주문취소 요청 -> 관리자 승인 플로우.
+ALTER TABLE orders
+  ADD COLUMN IF NOT EXISTS cancel_requested    BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS cancel_requested_at TIMESTAMPTZ;
+
+-- 제조국(원산지) 표기: 관리자가 직접 입력, 상세페이지 사이즈 아래에 노출.
+ALTER TABLE products
+  ADD COLUMN IF NOT EXISTS origin VARCHAR(100);
+
+-- 연관 상품(거미줄식 연결): 한쪽에서 연결하면 양방향으로 저장되어 서로의
+-- 상세페이지에 노출된다. (product_id, related_product_id) 순서쌍 + 역방향
+-- 쌍을 함께 저장하므로 조회는 product_id 기준 단방향 SELECT면 충분하다.
+CREATE TABLE IF NOT EXISTS product_relations (
+  product_id         INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  related_product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  PRIMARY KEY (product_id, related_product_id),
+  CHECK (product_id <> related_product_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_product_relations_related ON product_relations(related_product_id);
+
+-- 적립금(마일리지) 원장: 적립(+)/사용(-) 내역을 기록하고 SUM(amount)으로 잔액을 계산한다.
+-- 결제확인 시 결제금액의 2.5%를 적립하고, 주문 시 보유 잔액 내에서 사용할 수 있다.
+CREATE TABLE IF NOT EXISTS mileage_transactions (
+  id         SERIAL PRIMARY KEY,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  amount     INTEGER NOT NULL,
+  reason     VARCHAR(100) NOT NULL,
+  order_id   INTEGER REFERENCES orders(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_mileage_transactions_user_id ON mileage_transactions(user_id);
+
+-- 가격 아래에 노출되는 짧은 한줄 소개 (상세 설명 리치텍스트와 별개).
+ALTER TABLE products
+  ADD COLUMN IF NOT EXISTS summary VARCHAR(300);
+
+-- 메인페이지 히어로 배너(2026 S/S NEW ARRIVAL / BEST ITEM) 클릭 시 이동할 상품을
+-- 품목등록에서 직접 지정한다. 슬롯당 상품 1개만 연결 가능(부분 유니크 인덱스),
+-- 새로 지정하면 기존에 그 슬롯을 갖고 있던 상품 연결은 API에서 자동 해제한다.
+ALTER TABLE products
+  ADD COLUMN IF NOT EXISTS hero_slot VARCHAR(20) CHECK (hero_slot IN ('new_arrival', 'best_item'));
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_products_hero_slot_uniq ON products(hero_slot) WHERE hero_slot IS NOT NULL;
+
+ALTER TABLE orders
+  ADD COLUMN IF NOT EXISTS mileage_used INTEGER NOT NULL DEFAULT 0;

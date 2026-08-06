@@ -30,6 +30,14 @@ const upload = multer({
 const BOARD_TYPES = ["notice", "review", "qna", "exchange"] as const;
 type BoardType = (typeof BOARD_TYPES)[number];
 
+// QnA는 문의 내용에 개인정보가 섞이기 쉬워 항상 비밀글로 강제한다
+// (작성자·관리자만 열람/댓글 가능하며, 댓글도 비밀글 게이트를 그대로 상속받는다).
+const FORCE_PRIVATE_BOARD_TYPES: BoardType[] = ["qna"];
+
+// 반품/교환은 공지사항처럼 관리자만 작성하는 공지성 게시판으로 운영한다:
+// 항상 전체 공개(비밀글 불가)이고 댓글도 달 수 없다.
+const NOTICE_LIKE_BOARD_TYPES: BoardType[] = ["notice", "exchange"];
+
 function isBoardType(value: string): value is BoardType {
   return (BOARD_TYPES as readonly string[]).includes(value);
 }
@@ -54,9 +62,12 @@ router.param("boardType", (req, res, next, boardType) => {
 
 function toListItem(row: any, viewerId?: number, viewerIsAdmin?: boolean) {
   const canSeeContent = !row.is_private || row.user_id === viewerId || viewerIsAdmin;
+  // QnA는 문의 제목에도 개인정보(주문/상품 관련 문의 내용)가 드러나는 경우가 많아
+  // 목록에서 제목 자체를 가려서 "비밀글입니다"로 노출한다.
+  const hideTitle = row.board_type === "qna" && !canSeeContent;
   return {
     id: row.id,
-    title: row.title,
+    title: hideTitle ? "비밀글입니다" : row.title,
     content: canSeeContent ? row.content : undefined,
     authorName: row.author_name,
     authorIsAdmin: row.author_is_admin,
@@ -236,8 +247,8 @@ router.post("/:boardType", requireAuth, async (req: AuthedRequest, res) => {
     return res.status(400).json({ error: "제목과 내용은 필수입니다." });
   }
 
-  if (boardType === "notice" && !(await isAdminUser(req.userId))) {
-    return res.status(403).json({ error: "공지사항은 관리자만 작성할 수 있습니다." });
+  if (NOTICE_LIKE_BOARD_TYPES.includes(boardType) && !(await isAdminUser(req.userId))) {
+    return res.status(403).json({ error: "공지사항/반품교환은 관리자만 작성할 수 있습니다." });
   }
 
   if (boardType === "review") {
@@ -265,7 +276,11 @@ router.post("/:boardType", requireAuth, async (req: AuthedRequest, res) => {
     }
   }
 
-  const isPrivateFinal = Boolean(isPrivate) && boardType !== "notice";
+  const isPrivateFinal = NOTICE_LIKE_BOARD_TYPES.includes(boardType)
+    ? false
+    : FORCE_PRIVATE_BOARD_TYPES.includes(boardType)
+      ? true
+      : Boolean(isPrivate);
   if (isPrivateFinal && !password?.trim()) {
     return res.status(400).json({ error: "비밀글은 비밀번호를 입력해야 합니다." });
   }
@@ -295,7 +310,7 @@ router.put("/:boardType/:id", requireAuth, async (req: AuthedRequest, res) => {
   const { title, content, isPrivate, rating, imageUrls, password } = req.body ?? {};
 
   const existing = await pool.query(
-    "SELECT user_id FROM community_posts WHERE id = $1 AND board_type = $2",
+    "SELECT user_id, password_hash FROM community_posts WHERE id = $1 AND board_type = $2",
     [req.params.id, boardType]
   );
   if (existing.rows.length === 0) {
@@ -313,8 +328,15 @@ router.put("/:boardType/:id", requireAuth, async (req: AuthedRequest, res) => {
     }
   }
 
-  const isPrivateFinal = typeof isPrivate === "boolean" && boardType !== "notice" ? isPrivate : null;
-  if (isPrivateFinal === true && !password?.trim()) {
+  const isPrivateFinal = NOTICE_LIKE_BOARD_TYPES.includes(boardType)
+    ? false
+    : FORCE_PRIVATE_BOARD_TYPES.includes(boardType)
+      ? true
+      : typeof isPrivate === "boolean"
+        ? isPrivate
+        : null;
+  // 이미 비밀글(기존 비밀번호 보유)이면 수정 시 비밀번호를 다시 입력하지 않아도 기존 비밀번호를 유지한다.
+  if (isPrivateFinal === true && !existing.rows[0].password_hash && !password?.trim()) {
     return res.status(400).json({ error: "비밀글은 비밀번호를 입력해야 합니다." });
   }
   const passwordHash = password?.trim() ? await bcrypt.hash(String(password).trim(), 10) : null;
@@ -365,6 +387,9 @@ router.delete("/:boardType/:id", requireAuth, async (req: AuthedRequest, res) =>
 
 router.post("/:boardType/:id/comments", requireAuth, async (req: AuthedRequest, res) => {
   const boardType = req.params.boardType as BoardType;
+  if (NOTICE_LIKE_BOARD_TYPES.includes(boardType)) {
+    return res.status(403).json({ error: "공지사항/반품교환에는 댓글을 작성할 수 없습니다." });
+  }
   const { content } = req.body ?? {};
   if (!content?.trim()) {
     return res.status(400).json({ error: "댓글 내용은 필수입니다." });
